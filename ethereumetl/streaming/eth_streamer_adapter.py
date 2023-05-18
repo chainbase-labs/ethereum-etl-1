@@ -62,7 +62,7 @@ class EthStreamerAdapter:
         # Export traces
         traces = []
         if self._should_export(EntityType.TRACE):
-            traces = self._export_traces(start_block, end_block, self.node_client)
+            traces = self._export_traces(start_block, end_block, self.node_client, transactions)
 
         # Export contracts
         contracts = []
@@ -149,7 +149,7 @@ class EthStreamerAdapter:
         token_transfers = exporter.get_items('token_transfer')
         return token_transfers
 
-    def _export_traces(self, start_block, end_block, node_client):
+    def _export_traces(self, start_block, end_block, node_client, transactions=None):
         exporter = InMemoryItemExporter(item_types=['trace'])
         if node_client == "geth":
             job = ExportGethTracesJob(
@@ -158,7 +158,8 @@ class EthStreamerAdapter:
                 batch_size=self.batch_size,
                 batch_web3_provider=self.batch_web3_provider,
                 max_workers=self.max_workers,
-                item_exporter=exporter
+                item_exporter=exporter,
+                transactions=transactions
             )
         else:
             job = ExportTracesJob(

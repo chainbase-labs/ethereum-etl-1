@@ -29,7 +29,10 @@ from ethereumetl.mappers.geth_trace_mapper import EthGethTraceMapper
 from ethereumetl.mappers.trace_mapper import EthTraceMapper
 from ethereumetl.utils import validate_range, rpc_response_to_result
 
+from ethereumetl.service.trace_id_calculator import calculate_trace_ids
+from ethereumetl.service.trace_status_calculator import calculate_trace_statuses
 
+from ethereumetl.streaming.enrich import enrich_traces_by_transactions
 # Exports geth traces
 class ExportGethTracesJob(BaseJob):
     def __init__(
@@ -37,6 +40,7 @@ class ExportGethTracesJob(BaseJob):
             start_block,
             end_block,
             batch_size,
+            transactions,
             batch_web3_provider,
             max_workers,
             item_exporter):
@@ -51,6 +55,7 @@ class ExportGethTracesJob(BaseJob):
 
         self.geth_trace_mapper = EthGethTraceMapper()
         self.trace_mapper = EthTraceMapper()
+        self.transactions = transactions
 
     def _start(self):
         self.item_exporter.open()
@@ -75,9 +80,28 @@ class ExportGethTracesJob(BaseJob):
                 'transaction_traces': [tx_trace.get('result') for tx_trace in result],
             })
             traces = self.trace_mapper.geth_trace_to_traces(geth_trace)
+            traces_dict = []
+            traces_dto = []
             for trace in traces:
+                traces_dict.append(self.trace_mapper.trace_to_dict(trace))
+            # use transactions to enrich trace
+            enriched_traces_dict = enrich_traces_by_transactions(self.transactions, traces_dict)
+
+            for enriched_trace in enriched_traces_dict:
+                traces_dto.append(self.trace_mapper.constructor(enriched_trace))
+
+            calculate_trace_statuses(traces_dto)
+            calculate_trace_ids(traces_dto)
+            calculate_trace_indexes(traces_dto)
+            for trace in traces_dto:
                 self.item_exporter.export_item(self.trace_mapper.trace_to_dict(trace))
 
     def _end(self):
         self.batch_work_executor.shutdown()
         self.item_exporter.close()
+
+
+def calculate_trace_indexes(traces):
+    # Only works if traces were originally ordered correctly which is the case for Parity traces
+    for ind, trace in enumerate(traces):
+        trace.trace_index = ind
