@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import json
+import logging
 
 from ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ethereumetl.json_rpc_requests import generate_trace_block_by_number_json_rpc
@@ -29,6 +30,7 @@ from ethereumetl.mappers.geth_trace_mapper import EthGethTraceMapper
 from ethereumetl.mappers.trace_mapper import EthTraceMapper
 from ethereumetl.utils import validate_range, rpc_response_to_result
 
+logger = logging.getLogger(__name__)
 
 # Exports geth traces
 class ExportGethTracesJob(BaseJob):
@@ -74,6 +76,12 @@ class ExportGethTracesJob(BaseJob):
                 'block_number': block_number,
                 'transaction_traces': [tx_trace.get('result') for tx_trace in result],
             })
+            # fix when transaction_traces is empty cause trace.from_address = to_normalized_address(tx_trace.get('from'))
+            # AttributeError: 'NoneType' object has no attribute 'get'
+            if len(geth_trace.transaction_traces) == 0:
+                logger.info('No trace found for block %s', block_number)
+                continue
+                
             traces = self.trace_mapper.geth_trace_to_traces(geth_trace)
             for trace in traces:
                 self.item_exporter.export_item(self.trace_mapper.trace_to_dict(trace))
