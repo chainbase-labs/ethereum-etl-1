@@ -14,9 +14,8 @@ from ethereumetl.jobs.extract_contracts_job import ExtractContractsJob
 from ethereumetl.jobs.extract_token_transfers_job import \
     ExtractTokenTransfersJob
 from ethereumetl.jobs.extract_tokens_job import ExtractTokensJob
-from ethereumetl.streaming.enrich import enrich_transactions, enrich_logs, \
-    enrich_token_transfers, enrich_traces, \
-    enrich_contracts, enrich_tokens, enrich_traces_with_blocks_transactions
+from ethereumetl.streaming.enrich import enrich_transactions, enrich_logs, enrich_token_transfers, enrich_traces, \
+    enrich_contracts, enrich_tokens, enrich_traces_with_blocks_transactions, enrich_l2_transactions
 from ethereumetl.streaming.eth_item_id_calculator import EthItemIdCalculator
 from ethereumetl.streaming.eth_item_timestamp_calculator import \
     EthItemTimestampCalculator
@@ -32,12 +31,14 @@ class EthStreamerAdapter:
             item_exporter=ConsoleItemExporter(),
             batch_size=100,
             max_workers=5,
+            chain='ethereum',
             entity_types=tuple(EntityType.ALL_FOR_STREAMING)):
         self.batch_web3_provider = batch_web3_provider
         self.node_client = node_client
         self.item_exporter = item_exporter
         self.batch_size = batch_size
         self.max_workers = max_workers
+        self.chain = chain,
         self.entity_types = entity_types
         self.item_id_calculator = EthItemIdCalculator()
         self.item_timestamp_calculator = EthItemTimestampCalculator()
@@ -84,8 +85,9 @@ class EthStreamerAdapter:
 
         enriched_blocks = blocks \
             if EntityType.BLOCK in self.entity_types else []
-        enriched_transactions = enrich_transactions(transactions, receipts) \
-            if EntityType.TRANSACTION in self.entity_types else []
+        enriched_transactions = enrich_l2_transactions(transactions, receipts) \
+            if EntityType.TRANSACTION in self.entity_types and self.chain[0] == "optimism" \
+            else enrich_transactions(transactions, receipts) if EntityType.TRANSACTION in self.entity_types else []
         enriched_logs = enrich_logs(blocks, logs) \
             if EntityType.LOG in self.entity_types else []
         enriched_token_transfers = enrich_token_transfers(blocks, token_transfers) \
@@ -127,6 +129,7 @@ class EthStreamerAdapter:
             batch_web3_provider=self.batch_web3_provider,
             max_workers=self.max_workers,
             item_exporter=blocks_and_transactions_item_exporter,
+            chain=self.chain,
             export_blocks=self._should_export(EntityType.BLOCK),
             export_transactions=self._should_export(EntityType.TRANSACTION)
         )
