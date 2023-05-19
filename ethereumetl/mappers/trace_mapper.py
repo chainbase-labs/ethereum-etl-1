@@ -126,7 +126,8 @@ class EthTraceMapper(object):
 
     def _iterate_transaction_trace(self, block_number, tx_index, tx_trace, trace_address=[]):
         trace = EthTrace()
-
+        if tx_trace is None:
+            return []
         trace.block_number = block_number
         trace.transaction_index = tx_index
 
