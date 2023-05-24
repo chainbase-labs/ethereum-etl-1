@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 
-from ethereumetl.domain.transaction import EthTransaction
+from ethereumetl.domain.transaction import EthTransaction, L2EthTransaction
 from ethereumetl.utils import hex_to_dec, to_normalized_address
 
 
@@ -63,4 +63,51 @@ class EthTransactionMapper(object):
             'max_fee_per_gas': transaction.max_fee_per_gas,
             'max_priority_fee_per_gas': transaction.max_priority_fee_per_gas,
             'transaction_type': transaction.transaction_type
+        }
+
+
+class L2EthTransactionMapper(EthTransactionMapper):
+    def json_dict_to_transaction(self, json_dict, **kwargs):
+        transaction = L2EthTransaction()
+        transaction.hash = json_dict.get('hash')
+        transaction.nonce = hex_to_dec(json_dict.get('nonce'))
+        transaction.block_hash = json_dict.get('blockHash')
+        transaction.block_number = hex_to_dec(json_dict.get('blockNumber'))
+        transaction.block_timestamp = kwargs.get('block_timestamp')
+        transaction.transaction_index = hex_to_dec(json_dict.get('transactionIndex'))
+        transaction.from_address = to_normalized_address(json_dict.get('from'))
+        transaction.to_address = to_normalized_address(json_dict.get('to'))
+        transaction.value = hex_to_dec(json_dict.get('value'))
+        transaction.gas = hex_to_dec(json_dict.get('gas'))
+        transaction.gas_price = hex_to_dec(json_dict.get('gasPrice'))
+        transaction.input = json_dict.get('input')
+        transaction.max_fee_per_gas = hex_to_dec(json_dict.get('maxFeePerGas'))
+        transaction.max_priority_fee_per_gas = hex_to_dec(json_dict.get('maxPriorityFeePerGas'))
+        transaction.transaction_type = hex_to_dec(json_dict.get('type'))
+        transaction.l1_times_stamp = json_dict.get('l1Timestamp')
+        transaction.l1_block_number = hex_to_dec(json_dict.get('l1BlockNumber'))
+        transaction.l1_tx_origin = json_dict.get('l1TxOrigin')
+        return transaction
+
+    def transaction_to_dict(self, transaction):
+        return {
+            'type': 'transaction',
+            'hash': transaction.hash,
+            'nonce': transaction.nonce,
+            'block_hash': transaction.block_hash,
+            'block_number': transaction.block_number,
+            'block_timestamp': transaction.block_timestamp,
+            'transaction_index': transaction.transaction_index,
+            'from_address': transaction.from_address,
+            'to_address': transaction.to_address,
+            'value': transaction.value,
+            'gas': transaction.gas,
+            'gas_price': transaction.gas_price,
+            'input': transaction.input,
+            'max_fee_per_gas': transaction.max_fee_per_gas,
+            'max_priority_fee_per_gas': transaction.max_priority_fee_per_gas,
+            'transaction_type': transaction.transaction_type,
+            'l1_block_number': transaction.l1_block_number,
+            'l1_tx_origin': transaction.l1_tx_origin,
+            'l1_times_stamp': transaction.l1_times_stamp
         }

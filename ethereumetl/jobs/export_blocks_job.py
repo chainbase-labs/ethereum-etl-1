@@ -27,8 +27,7 @@ from ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from blockchainetl.jobs.base_job import BaseJob
 from ethereumetl.json_rpc_requests import generate_get_block_by_number_json_rpc
 from ethereumetl.mappers.block_mapper import EthBlockMapper
-from ethereumetl.mappers.l2_transaction_mapper import L2EthTransactionMapper
-from ethereumetl.mappers.transaction_mapper import EthTransactionMapper
+from ethereumetl.mappers.transaction_mapper import EthTransactionMapper, L2EthTransactionMapper
 from ethereumetl.utils import rpc_response_batch_to_results, validate_range
 
 
