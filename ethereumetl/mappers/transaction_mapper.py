@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 
-from ethereumetl.domain.transaction import EthTransaction, L2EthTransaction
+from ethereumetl.domain.transaction import EthTransaction, OptimismTransaction
 from ethereumetl.utils import hex_to_dec, to_normalized_address
 
 
@@ -66,9 +66,9 @@ class EthTransactionMapper(object):
         }
 
 
-class L2EthTransactionMapper(EthTransactionMapper):
+class OptimismTransactionMapper(EthTransactionMapper):
     def json_dict_to_transaction(self, json_dict, **kwargs):
-        transaction = L2EthTransaction()
+        transaction = OptimismTransaction()
         transaction.hash = json_dict.get('hash')
         transaction.nonce = hex_to_dec(json_dict.get('nonce'))
         transaction.block_hash = json_dict.get('blockHash')

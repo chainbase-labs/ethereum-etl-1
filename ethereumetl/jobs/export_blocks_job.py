@@ -27,7 +27,7 @@ from ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from blockchainetl.jobs.base_job import BaseJob
 from ethereumetl.json_rpc_requests import generate_get_block_by_number_json_rpc
 from ethereumetl.mappers.block_mapper import EthBlockMapper
-from ethereumetl.mappers.transaction_mapper import EthTransactionMapper, L2EthTransactionMapper
+from ethereumetl.mappers.transaction_mapper import EthTransactionMapper, OptimismTransactionMapper
 from ethereumetl.utils import rpc_response_batch_to_results, validate_range
 
 
@@ -59,7 +59,7 @@ class ExportBlocksJob(BaseJob):
         if not self.export_blocks and not self.export_transactions:
             raise ValueError('At least one of export_blocks or export_transactions must be True')
         if self.chain[0] == 'optimism':
-            l2_transfer_mapper = L2EthTransactionMapper()
+            l2_transfer_mapper = OptimismTransactionMapper()
             self.block_mapper = EthBlockMapper(l2_transfer_mapper)
             self.transaction_mapper = l2_transfer_mapper
         else:

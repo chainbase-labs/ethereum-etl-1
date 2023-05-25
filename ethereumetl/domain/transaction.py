@@ -38,7 +38,7 @@ class EthTransaction(object):
         self.max_priority_fee_per_gas = None
         self.transaction_type = None
 
-class L2EthTransaction(EthTransaction):
+class OptimismTransaction(EthTransaction):
     def __int__(self):
         super().__int__()
         self.l1_block_number = None
