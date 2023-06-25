@@ -146,7 +146,6 @@ class EthStreamerAdapter:
             batch_web3_provider=self.batch_web3_provider,
             max_workers=self.max_workers,
             item_exporter=exporter,
-            chain=self.chain,
             export_receipts=self._should_export(EntityType.RECEIPT),
             export_logs=self._should_export(EntityType.LOG)
         )

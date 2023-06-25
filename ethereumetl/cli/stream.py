@@ -55,11 +55,12 @@ from ethereumetl.thread_local_proxy import ThreadLocalProxy
 @click.option('-c', '--chain', default='ethereum', show_default=True, type=str, help='The name of chain which will be synced')
 @click.option('-n', '--node-client', default='erigon', show_default=True, type=str, help='The name of evm client which will be used')
 @click.option('--log-file', default=None, show_default=True, type=str, help='Log file')
+@click.option('--log-name', default='INFO', show_default=True, type=str, help='Log level')
 @click.option('--pid-file', default=None, show_default=True, type=str, help='pid file')
 def stream(last_synced_block_file, lag, provider_uri, output, start_block, end_block, entity_types,
-           period_seconds=10, batch_size=2, block_batch_size=10, max_workers=5, chain='ethereum', node_client='erigon', log_file=None, pid_file=None):
+           period_seconds=10, batch_size=2, block_batch_size=10, max_workers=5, chain='ethereum', node_client='erigon', log_name='INFO', log_file=None, pid_file=None):
     """Streams all data types to console or Google Pub/Sub."""
-    configure_logging(log_file)
+    configure_logging(log_file, log_name)
     configure_signals()
     entity_types = parse_entity_types(entity_types)
 
