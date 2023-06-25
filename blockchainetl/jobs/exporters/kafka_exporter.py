@@ -30,11 +30,18 @@ class KafkaItemExporter:
             self.export_item(item)
 
     def export_item(self, item):
+        partition_key = None
         item_type = item.get('type')
         if item_type is not None and item_type in self.item_type_to_topic_mapping:
             data = json.dumps(item).encode('utf-8')
             logging.debug(data)
-            return self.producer.send(self.item_type_to_topic_mapping[item_type], value=data)
+            #  according to item_type,get partition key
+            if item_type == 'log':
+                partition_key = item.get('address')
+            logging.info('Partition key for item type "{}" is "{}"'.format(item_type, partition_key))
+            return self.producer.send(self.item_type_to_topic_mapping[item_type],
+                                      key=partition_key,
+                                      value=data)
         else:
             logging.warning('Topic for item type "{}" is not configured.'.format(item_type))
 
