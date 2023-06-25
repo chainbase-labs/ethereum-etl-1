@@ -60,6 +60,48 @@ def join(left, right, join_fields, left_fields, right_fields):
 
             yield result_item
 
+def enrich_l2_transactions(transactions, receipts):
+    result = list(join(
+        transactions, receipts, ('hash', 'transaction_hash'),
+        left_fields=[
+            'type',
+            'hash',
+            'nonce',
+            'transaction_index',
+            'from_address',
+            'to_address',
+            'value',
+            'gas',
+            'gas_price',
+            'input',
+            'block_timestamp',
+            'block_number',
+            'block_hash',
+            'max_fee_per_gas',
+            'max_priority_fee_per_gas',
+            'transaction_type',
+            'l1_block_number',
+            'l1_times_stamp',
+            'l1_tx_origin'
+        ],
+        right_fields=[
+            ('cumulative_gas_used', 'receipt_cumulative_gas_used'),
+            ('gas_used', 'receipt_gas_used'),
+            ('contract_address', 'receipt_contract_address'),
+            ('root', 'receipt_root'),
+            ('status', 'receipt_status'),
+            ('effective_gas_price', 'receipt_effective_gas_price'),
+            ('l1_fee', 'receipt_l1_fee'),
+            ('l1_gas_used', 'receipt_l1_gas_used'),
+            ('l1_gas_used_paid', 'receipt_l1_gas_used_paid'),
+            ('l1_gas_price', 'receipt_l1_gas_price'),
+            ('l1_fee_scalar', 'receipt_l1_fee_scalar')
+        ]))
+
+    if len(result) != len(transactions):
+        raise ValueError('The number of transactions is wrong ' + str(result))
+
+    return result
 
 def enrich_transactions(transactions, receipts):
     result = list(join(

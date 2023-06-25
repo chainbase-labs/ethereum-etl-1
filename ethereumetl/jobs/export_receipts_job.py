@@ -27,7 +27,7 @@ from blockchainetl.jobs.base_job import BaseJob
 from ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ethereumetl.json_rpc_requests import generate_get_receipt_json_rpc
 from ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper
-from ethereumetl.mappers.receipt_mapper import EthReceiptMapper
+from ethereumetl.mappers.receipt_mapper import EthReceiptMapper, OptimismReceiptMapper
 from ethereumetl.utils import rpc_response_batch_to_results
 
 
@@ -40,6 +40,7 @@ class ExportReceiptsJob(BaseJob):
             batch_web3_provider,
             max_workers,
             item_exporter,
+            chain="ethereum",
             export_receipts=True,
             export_logs=True):
         self.batch_web3_provider = batch_web3_provider
@@ -47,13 +48,17 @@ class ExportReceiptsJob(BaseJob):
 
         self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
         self.item_exporter = item_exporter
+        self.chain = chain
 
         self.export_receipts = export_receipts
         self.export_logs = export_logs
         if not self.export_receipts and not self.export_logs:
             raise ValueError('At least one of export_receipts or export_logs must be True')
 
-        self.receipt_mapper = EthReceiptMapper()
+        if self.chain[0] == "optimism":
+            self.receipt_mapper = OptimismReceiptMapper()
+        else:
+            self.receipt_mapper = EthReceiptMapper()
         self.receipt_log_mapper = EthReceiptLogMapper()
 
     def _start(self):
