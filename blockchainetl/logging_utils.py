@@ -11,3 +11,6 @@ def logging_basic_config(filename=None, level_name='INFO'):
     logging.basicConfig(level=log_level, format=format)
 
   logging.getLogger('ethereum_dasm.evmdasm').setLevel(logging.ERROR)
+  logging.getLogger('kafka.producer.kafka').setLevel(logging.DEBUG)
+  logging.getLogger('kafka.producer.sender').setLevel(logging.DEBUG)
+  logging.getLogger('kafka.producer.record_accumulator').setLevel(logging.DEBUG)
