@@ -37,7 +37,7 @@ class KafkaItemExporter:
             logging.debug(data)
             #  according to item_type,get partition key
             if item_type == 'log':
-                partition_key = item.get('address')
+                partition_key = str.encode(item.get('address'))
             logging.info('Partition key for item type "{}" is "{}"'.format(item_type, partition_key))
             return self.producer.send(self.item_type_to_topic_mapping[item_type],
                                       key=partition_key,
