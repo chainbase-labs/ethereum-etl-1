@@ -34,7 +34,7 @@ class MultiItemExporter:
             exporter.open()
 
     @staticmethod
-    def statistics_by_block(dict_list: list[dict], item_type: str):
+    def statistics_by_block(dict_list, item_type):
         if item_type == 'block':
             return
 
