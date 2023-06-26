@@ -6,6 +6,7 @@ from kafka import KafkaProducer
 
 from blockchainetl.jobs.exporters.converters.composite_item_converter import CompositeItemConverter
 
+logger = logging.getLogger(__name__)
 
 class KafkaItemExporter:
 
@@ -30,22 +31,22 @@ class KafkaItemExporter:
             self.export_item(item)
 
     def fail(self, error):
-        logging.exception(f"An error was encountered while "
+        logger.exception(f"An error was encountered while "
                           f"writing to kafka {error}.", exc_info=error)
 
     def success(self, status):
-        logging.info(f"Send message to kafka successfully {status}.")
+        logger.info(f"Send message to kafka successfully {status}.")
 
     def export_item(self, item):
         item_type = item.get('type')
         if item_type is not None and item_type in self.item_type_to_topic_mapping:
             data = json.dumps(item).encode('utf-8')
-            logging.debug(data)
+            logger.debug(data)
             return self.producer.send(
                 self.item_type_to_topic_mapping[item_type],
                 value=data).add_callback(self.success).add_errback(self.fail)
         else:
-            logging.warning('Topic for item type "{}" is not configured.'.format(item_type))
+            logger.warning('Topic for item type "{}" is not configured.'.format(item_type))
 
     def convert_items(self, items):
         for item in items:
