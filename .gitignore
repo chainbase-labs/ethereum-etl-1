@@ -52,3 +52,5 @@ ENV/
 /last_synced_block.txt
 
 .idea/*
+
+.vscode/*
