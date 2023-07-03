@@ -40,14 +40,14 @@ def read_resource(resource_group, file_name):
     return tests.resources.read_resource([RESOURCE_GROUP, resource_group], file_name)
 
 
-@pytest.mark.parametrize("start_block, end_block, batch_size, resource_group, entity_types, provider_type", [
-    (1755634, 1755635, 1, 'blocks_1755634_1755635', EntityType.ALL_FOR_INFURA, 'mock'),
-    skip_if_slow_tests_disabled([1755634, 1755635, 1, 'blocks_1755634_1755635', EntityType.ALL_FOR_INFURA, 'infura']),
-    (508110, 508110, 1, 'blocks_508110_508110', ['trace', 'contract', 'token'], 'mock'),
-    (2112234, 2112234, 1, 'blocks_2112234_2112234', ['trace', 'contract', 'token'], 'mock'),
-    skip_if_slow_tests_disabled([17173049, 17173050, 1, 'blocks_17173049_17173050', EntityType.ALL_FOR_INFURA, 'infura']),
+@pytest.mark.parametrize("start_block, end_block, batch_size, resource_group, entity_types, provider_type, node_client", [
+    (1755634, 1755635, 1, 'blocks_1755634_1755635', EntityType.ALL_FOR_INFURA, 'mock', 'ergion'),
+    skip_if_slow_tests_disabled([1755634, 1755635, 1, 'blocks_1755634_1755635', EntityType.ALL_FOR_INFURA, 'infura', 'geth']),
+    (508110, 508110, 1, 'blocks_508110_508110', ['trace', 'contract', 'token'], 'mock', 'ergion'),
+    (2112234, 2112234, 1, 'blocks_2112234_2112234', ['trace', 'contract', 'token'], 'mock', 'ergion'),
+    skip_if_slow_tests_disabled([17173049, 17173050, 1, 'blocks_17173049_17173050', EntityType.ALL_FOR_INFURA, 'infura', 'ergion']),
 ])
-def test_stream(tmpdir, start_block, end_block, batch_size, resource_group, entity_types, provider_type):
+def test_stream(tmpdir, start_block, end_block, batch_size, resource_group, entity_types, provider_type, node_client):
     try:
         os.remove('last_synced_block.txt')
     except OSError:
@@ -80,6 +80,7 @@ def test_stream(tmpdir, start_block, end_block, batch_size, resource_group, enti
             }
         ),
         entity_types=entity_types,
+        node_client=node_client
     )
     streamer = Streamer(
         blockchain_streamer_adapter=streamer_adapter,

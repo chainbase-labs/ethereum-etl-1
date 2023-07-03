@@ -59,7 +59,10 @@ class EthStreamerAdapter:
         # Export receipts and logs
         receipts, logs = [], []
         if self._should_export(EntityType.RECEIPT) or self._should_export(EntityType.LOG):
-            receipts, logs = self._export_receipts_and_logs_by_block(blocks)
+            if self.node_client != 'erigon':
+                receipts, logs = self._export_receipts_and_logs(transactions)
+            else:
+                receipts, logs = self._export_receipts_and_logs_by_block(blocks)
 
         # Extract token transfers
         token_transfers = []
@@ -142,6 +145,22 @@ class EthStreamerAdapter:
         exporter = InMemoryItemExporter(item_types=['receipt', 'log'])
         job = ExportBlockReceiptsJob(
             blocks_iterable=(block['number'] for block in blocks),
+            batch_size=self.batch_size,
+            batch_web3_provider=self.batch_web3_provider,
+            max_workers=self.max_workers,
+            item_exporter=exporter,
+            export_receipts=self._should_export(EntityType.RECEIPT),
+            export_logs=self._should_export(EntityType.LOG)
+        )
+        job.run()
+        receipts = exporter.get_items('receipt')
+        logs = exporter.get_items('log')
+        return receipts, logs
+
+    def _export_receipts_and_logs(self, transactions):
+        exporter = InMemoryItemExporter(item_types=['receipt', 'log'])
+        job = ExportReceiptsJob(
+            transaction_hashes_iterable=(transaction['hash'] for transaction in transactions),
             batch_size=self.batch_size,
             batch_web3_provider=self.batch_web3_provider,
             max_workers=self.max_workers,
