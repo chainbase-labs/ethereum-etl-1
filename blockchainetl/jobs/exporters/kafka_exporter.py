@@ -1,6 +1,7 @@
 import collections
 import json
 import logging
+import sys
 
 from kafka import KafkaProducer
 
@@ -15,7 +16,11 @@ class KafkaItemExporter:
         self.converter = CompositeItemConverter(converters)
         self.connection_url = self.get_connection_url(output)
         print(self.connection_url)
-        self.producer = KafkaProducer(bootstrap_servers=self.connection_url)
+        self.producer = KafkaProducer(
+            bootstrap_servers=self.connection_url,
+            retries=sys.maxsize,
+            max_in_flight_requests_per_connection=1
+        )
 
     def get_connection_url(self, output):
         try:
@@ -29,10 +34,11 @@ class KafkaItemExporter:
     def export_items(self, items):
         for item in items:
             self.export_item(item)
+        self.producer.flush(timeout=30)
 
     def fail(self, error):
-        logger.exception(f"An error was encountered while "
-                          f"writing to kafka {error}.", exc_info=error)
+        logger.exception(f"Send message to kafka failed: {error}.",
+                         exc_info=error)
 
     def success(self, status):
         logger.info(f"Send message to kafka successfully {status}.")
@@ -44,7 +50,7 @@ class KafkaItemExporter:
             logger.debug(data)
             return self.producer.send(
                 self.item_type_to_topic_mapping[item_type],
-                value=data).add_callback(self.success).add_errback(self.fail)
+                value=data).add_errback(self.fail)
         else:
             logger.warning('Topic for item type "{}" is not configured.'.format(item_type))
 

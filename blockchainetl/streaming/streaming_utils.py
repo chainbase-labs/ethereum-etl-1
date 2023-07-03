@@ -13,7 +13,7 @@ def configure_signals():
     signal.signal(signal.SIGTERM, sigterm_handler)
 
 
-def configure_logging(filename, level_name):
+def configure_logging(filename, level_name=None):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     logging_basic_config(filename=filename, level_name=level_name)
