@@ -18,7 +18,9 @@ class KafkaItemExporter:
         print(self.connection_url)
         self.producer = KafkaProducer(
             bootstrap_servers=self.connection_url,
-            retries=sys.maxsize
+            retries=sys.maxsize,
+            max_in_flight_requests_per_connection=1,
+            batch_size=16384 * 32
         )
 
     def get_connection_url(self, output):
@@ -33,6 +35,7 @@ class KafkaItemExporter:
     def export_items(self, items):
         for item in items:
             self.export_item(item)
+        self.producer.flush(timeout=30)
 
     def fail(self, error):
         logger.exception(f"Send message to kafka failed: {error}.",
