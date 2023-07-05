@@ -4,23 +4,21 @@ import logging
 import sys
 
 from kafka import KafkaProducer
-
-from blockchainetl.jobs.exporters.converters.composite_item_converter import CompositeItemConverter
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 class KafkaItemExporter:
 
-    def __init__(self, output, item_type_to_topic_mapping, converters=()):
+    def __init__(self, output, item_type_to_topic_mapping):
         self.item_type_to_topic_mapping = item_type_to_topic_mapping
-        self.converter = CompositeItemConverter(converters)
         self.connection_url = self.get_connection_url(output)
         print(self.connection_url)
         self.producer = KafkaProducer(
             bootstrap_servers=self.connection_url,
             retries=sys.maxsize,
             max_in_flight_requests_per_connection=1,
-            linger_ms=10,
+            linger_ms=20,
             batch_size=16384 * 32
         )
 
@@ -34,9 +32,26 @@ class KafkaItemExporter:
         pass
 
     def export_items(self, items):
+        group = defaultdict(list)
+        logger.info(f"Start coding, records count {len(items)}")
         for item in items:
-            self.export_item(item)
+            item_type = item.get('type')
+            arr = group.get(item_type)
+            data = json.dumps(item).encode('utf-8')
+            if arr is None:
+                group[item_type] = [data]
+            else:
+                arr.append(data)
+
+        logger.info("Start sending")
+        for key, value in group.items():
+            topic_name = self.item_type_to_topic_mapping[key]
+            for item in value:
+                self.producer.send(topic_name, value=item).add_errback(self.fail)
+        # for item in items:
+        #     self.export_item(item)
         self.producer.flush(timeout=30)
+        logger.info("End of sending")
 
     def fail(self, error):
         logger.exception(f"Send message to kafka failed: {error}.",
@@ -55,10 +70,6 @@ class KafkaItemExporter:
                 value=data).add_errback(self.fail)
         else:
             logger.warning('Topic for item type "{}" is not configured.'.format(item_type))
-
-    def convert_items(self, items):
-        for item in items:
-            yield self.converter.convert_item(item)
 
     def close(self):
         pass
