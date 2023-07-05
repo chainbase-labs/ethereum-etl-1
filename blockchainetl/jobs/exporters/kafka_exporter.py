@@ -20,6 +20,7 @@ class KafkaItemExporter:
             bootstrap_servers=self.connection_url,
             retries=sys.maxsize,
             max_in_flight_requests_per_connection=1,
+            linger_ms=10,
             batch_size=16384 * 32
         )
 
