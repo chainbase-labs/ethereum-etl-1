@@ -18,8 +18,7 @@ class KafkaItemExporter:
         print(self.connection_url)
         self.producer = KafkaProducer(
             bootstrap_servers=self.connection_url,
-            retries=sys.maxsize,
-            max_in_flight_requests_per_connection=1
+            retries=sys.maxsize
         )
 
     def get_connection_url(self, output):
