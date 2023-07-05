@@ -34,7 +34,6 @@ class KafkaItemExporter:
     def export_items(self, items):
         for item in items:
             self.export_item(item)
-        self.producer.flush(timeout=30)
 
     def fail(self, error):
         logger.exception(f"Send message to kafka failed: {error}.",
