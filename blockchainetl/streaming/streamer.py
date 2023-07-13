@@ -27,6 +27,7 @@ import time
 
 from blockchainetl.streaming.streamer_adapter_stub import StreamerAdapterStub
 from blockchainetl.file_utils import smart_open
+from ethereumetl.service.reorg_service import ReorgException
 
 
 class Streamer:
@@ -77,7 +78,7 @@ class Streamer:
                 synced_blocks = self._sync_cycle()
             except Exception as e:
                 # https://stackoverflow.com/a/4992124/1580227
-                logging.exception('An exception occurred while syncing block data.')
+                logging.exception(f'An exception occurred while syncing block data. {e}')
                 if not self.retry_errors:
                     raise e
 
@@ -95,10 +96,19 @@ class Streamer:
             current_block, target_block, self.last_synced_block, blocks_to_sync))
 
         if blocks_to_sync != 0:
-            self.blockchain_streamer_adapter.export_all(self.last_synced_block + 1, target_block)
-            logging.info('Writing last synced block {}'.format(target_block))
-            write_last_synced_block(self.last_synced_block_file, target_block)
-            self.last_synced_block = target_block
+            try:
+                self.blockchain_streamer_adapter.export_all(
+                    self.last_synced_block + 1, target_block)
+                logging.info(
+                    'Writing last synced block {}'.format(target_block))
+                write_last_synced_block(self.last_synced_block_file, target_block)
+                self.last_synced_block = target_block
+            except ReorgException as e:
+                logging.error(f"There's been a block rollback. We're fixing "
+                              f"the block position {e.block_number}.")
+                write_last_synced_block(self.last_synced_block_file, e.block_number)
+                self.last_synced_block = e.block_number
+
 
         return blocks_to_sync
 
