@@ -32,8 +32,7 @@ class ConsoleItemExporter:
             self.export_item(item)
 
     def export_item(self, item):
-        # print(json.dumps(item))
-        pass
+        print(json.dumps(item))
 
     def close(self):
         pass

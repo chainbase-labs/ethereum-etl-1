@@ -38,6 +38,8 @@ from ethereumetl.thread_local_proxy import ThreadLocalProxy
               show_default=True, type=str, help='')
 @click.option('--lag', default=0, show_default=True, type=int,
               help='The number of blocks to lag behind the network.')
+@click.option('--last-sync-block-hash', default='last_sync_block_hash.json',
+              show_default=True, type=str, help='last sync block hash dict')
 @click.option('-p', '--provider-uri', default='https://mainnet.infura.io',
               show_default=True, type=str,
               help='The URI of the web3 provider e.g. '
@@ -75,7 +77,7 @@ from ethereumetl.thread_local_proxy import ThreadLocalProxy
               help='Log level')
 @click.option('--pid-file', default=None, show_default=True, type=str,
               help='pid file')
-def stream(last_synced_block_file, lag, provider_uri, output, start_block,
+def stream(last_synced_block_file, lag, last_sync_block_hash, provider_uri, output, start_block,
     end_block, entity_types,
     period_seconds=10, batch_size=2, block_batch_size=10, max_workers=5,
     chain='ethereum', node_client='erigon', log_name='INFO', log_file=None,
@@ -95,7 +97,8 @@ def stream(last_synced_block_file, lag, provider_uri, output, start_block,
     reorg_service = ReorgService(
         capacity=1000,
         batch_web3_provider=ThreadLocalProxy(
-            lambda: get_provider_from_uri(provider_uri, batch=True))
+            lambda: get_provider_from_uri(provider_uri, batch=True)),
+        last_sync_block_hash=last_sync_block_hash
     ) if lag == 0 else None
     streamer_adapter = EthStreamerAdapter(
         batch_web3_provider=ThreadLocalProxy(
