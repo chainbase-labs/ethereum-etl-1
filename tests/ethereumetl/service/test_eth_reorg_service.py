@@ -56,7 +56,11 @@ def test_reorg(resource_group, provider_type, batch_count, expectation):
             ),
             batch_count=batch_count
         )
-        reorg_service.check_prev_block(17684067)
+        reorg_service.check_prev_block({
+            "number": 17684067,
+            "parent_hash": "0x2ee865042ecb315717c7aca65c6eccc967b55dd0ce3c09689a34dada4d96d069",
+            "hash": "0x80012009d06d00058ca43a175337bbcac17609851e6de41eca871472f67f3d45"
+        })
 
 
 @pytest.mark.parametrize(
@@ -67,6 +71,12 @@ def test_reorg(resource_group, provider_type, batch_count, expectation):
             pytest.raises(
                 BatchReorgException,
                 match='Reorganization is highly occurring in the current block 17684067 0x80012009d06d00058ca43a175337bbcac17609851e6de41eca871472f67f3d41')
+        ),
+        (
+            'reorg_occurs_in_batch_head', 'mock', 'batch_hash.json',
+            pytest.raises(
+                ReorgException,
+                match='A block reorg occurred at block height 17684057')
         )
     ]
 )
@@ -84,6 +94,10 @@ def test_batch_reorg(resource_group, provider_type, batch_hash_file,
                     read_resource_lambda=read_resource_lambda,
                     batch=True
                 )
+            ),
+            last_sync_block_hash=tests.resources.get_resource(
+                [RESOURCE_GROUP, resource_group],
+                'last_sync_block_hash.json'
             ),
             batch_count=1
         )

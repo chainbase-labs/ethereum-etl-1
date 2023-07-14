@@ -98,8 +98,25 @@ class ReorgService:
     def check_batch(self, export_block_items):
         """ Check to see if a reorg occurred on fetch """
 
+        sorted_block_items = sorted(export_block_items, key=lambda item: item.get('number'))
+
+        start_block = min(
+            sorted_block_items,
+            key=lambda item: item.get('number')
+        )
+        self.check_prev_block(start_block)
+
+        for index in range(1, len(sorted_block_items)):
+            prev_block = sorted_block_items[index - 1]
+            current_block = sorted_block_items[index]
+            if prev_block.get('hash') != current_block.get('parent_hash'):
+                raise BatchReorgException(
+                    prev_block.get('number'),
+                    f"Reorganization is highly occurring in the current block {prev_block.get('number')} {prev_block.get('hash')}"
+                )
+
         last_block = max(
-            export_block_items,
+            sorted_block_items,
             key=lambda item: item.get('number')
         )
 
@@ -113,8 +130,9 @@ class ReorgService:
             )
         self.logger.debug(
             f"Check batch that block height {last_block.get('number')} is correct")
+
         # write hash to block
-        for item in export_block_items:
+        for item in sorted_block_items:
             self.add(item.get('number'), item.get('hash').lower())
 
     def check_block_hash(self, block_number: int, target_hash: str):
@@ -127,27 +145,36 @@ class ReorgService:
         block_hash = result.get('hash')
         return target_hash.lower() == block_hash.lower()
 
-    def check_prev_block(self, block_number: int):
-        self.init_block_hash_file(block_number)
-        prev_block = block_number - 1
-        if self.check_block_hash(
-            prev_block,
-            self._blockhash_capacity_dict.get(prev_block)
-        ):
+    def check_prev_block(self, block: dict):
+        """
+        Check if the block hash is consistent with the local,
+        if not then lookup to the block height where the reorg occurred
+        """
+
+        prev_block = block.get('number') - 1
+        self.init_block_hash_file(prev_block)
+
+        if block.get(
+            'parent_hash').lower() == self._blockhash_capacity_dict.get(
+            prev_block):
             self.logger.debug(
                 f"Check that block height {prev_block} is correct")
             return
 
-        reorg_start_block = self.find_reorg_block(block_number - 1)
+        reorg_start_block = self.find_reorg_block(prev_block)
+        self._clear_block_from_number(reorg_start_block)
+        raise ReorgException(
+            reorg_start_block,
+            f'A block reorg occurred at block height {reorg_start_block}')
+
+    def _clear_block_from_number(self, end_block):
         valid_block_hash = {
             key: value for key, value in self._blockhash_capacity_dict.items()
-            if key <= reorg_start_block
+            if key <= end_block
         }
         self._blockhash_capacity_dict.clear()
         self._blockhash_capacity_dict.update(valid_block_hash)
         self.save()
-        raise ReorgException(reorg_start_block,
-                             f'A block reorg occurred at block height {reorg_start_block}')
 
     def find_reorg_block(self, block_number: int):
         """ Find the height of the block where the reorg occurred """

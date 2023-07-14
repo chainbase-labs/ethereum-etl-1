@@ -59,12 +59,16 @@ class EthStreamerAdapter:
         blocks, transactions = [], []
 
         # TODO Check to see if a rollback occurred on the previous block
-
-        if self.reorg_service is not None:
-            self.reorg_service.check_prev_block(start_block)
-
         if self._should_export(EntityType.BLOCK) or self._should_export(EntityType.TRANSACTION):
             blocks, transactions = self._export_blocks_and_transactions(start_block, end_block)
+
+        enriched_blocks = blocks \
+            if EntityType.BLOCK in self.entity_types else []
+        sorted_enriched_blocks = sort_by(enriched_blocks, 'number')
+
+        # Check if reorg occurs
+        if self.reorg_service is not None:
+            self.reorg_service.check_batch(sorted_enriched_blocks)
 
         # Export receipts and logs
         receipts, logs = [], []
@@ -96,8 +100,6 @@ class EthStreamerAdapter:
         if self._should_export(EntityType.TOKEN):
             tokens = self._extract_tokens(contracts)
 
-        enriched_blocks = blocks \
-            if EntityType.BLOCK in self.entity_types else []
         enriched_transactions = enrich_l2_transactions(transactions, receipts) \
             if EntityType.TRANSACTION in self.entity_types and self.chain[0] == "optimism" \
             else enrich_transactions(transactions, receipts) if EntityType.TRANSACTION in self.entity_types else []
@@ -118,8 +120,6 @@ class EthStreamerAdapter:
             if EntityType.TOKEN in self.entity_types else []
 
         logging.info('Exporting with ' + type(self.item_exporter).__name__)
-
-        sorted_enriched_blocks = sort_by(enriched_blocks, 'number')
         all_items = \
             sorted_enriched_blocks + \
             sort_by(enriched_transactions, ('block_number', 'transaction_index')) + \
@@ -131,9 +131,6 @@ class EthStreamerAdapter:
 
         self.calculate_item_ids(all_items)
         self.calculate_item_timestamps(all_items)
-        # TODO Check if reorg occurs
-        if self.reorg_service is not None:
-            self.reorg_service.check_batch(sorted_enriched_blocks)
 
         self.item_exporter.export_items(all_items)
 
