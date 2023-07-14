@@ -29,17 +29,19 @@ class MySQLItemExporter:
     start_time = datetime.now()
     items_grouped_by_type = group_by_item_type(items)
 
+    connection = self.engine.connect()
     for item_type, insert_stmt in self.item_type_to_insert_stmt_mapping.items():
       item_group = items_grouped_by_type.get(item_type)
       if item_group:
-        connection = self.engine.connect()
         converted_items = list(self.convert_items(item_group))
         connection.execute(insert_stmt, converted_items)
         connection.commit()
     duration = datetime.now() - start_time
     self.logger.info(
-        f"Finished write. Total items processed: {len(items)}. Took {str(duration)}."
+        f"Finished write. Total items processed: {len(items)}. "
+        f"Took {str(duration)}."
     )
+    connection.close()
 
   def convert_items(self, items):
     for item in items:
