@@ -43,12 +43,13 @@ class ReorgService:
     _last_sync_block_hash: str
     _batch_web3_provider = None
     _batch_count = 100
-    reorg_block = 0
+    reorg_block = None
 
     def __init__(
         self, capacity, batch_web3_provider,
         last_sync_block_hash='last_sync_block_hash.json',
-        batch_count=100
+        batch_count=100,
+        readonly=False
     ):
         self._capacity = capacity
         self._blockhash_capacity_dict = FixedCapacityDict(capacity)
@@ -56,8 +57,11 @@ class ReorgService:
         self._last_sync_block_hash = last_sync_block_hash
         self._batch_count = batch_count
         self.logger = logging.getLogger('ReorgService')
+        self.readonly = readonly
 
     def save(self):
+        if self.readonly:
+            return
         with smart_open(self._last_sync_block_hash, 'w') as file_handle:
             file_handle.write(json.dumps(self._blockhash_capacity_dict))
 
@@ -162,20 +166,19 @@ class ReorgService:
                 f"Check that block height {prev_block} is correct")
             return
 
-        reorg_start_block = self.find_reorg_block(prev_block)
-        self._clear_block_from_number(reorg_start_block)
-        self.reorg_block = reorg_start_block + 1
+        self.reorg_block = self.find_reorg_block(prev_block)
+        reorg_start_block = self.reorg_block.get('number')
+        self.logger.warning(f"Rollback occurs at the height of the discovery block, {self.reorg_block}.")
+        self._clear_block_from_number(reorg_start_block - 1)
         raise ReorgException(
             reorg_start_block,
             f'A block reorg occurred at block height {reorg_start_block}')
 
     @staticmethod
-    def create_reorg_message(reorg_block):
-        return {
+    def create_reorg_message(reorg_block: dict):
+        reorg_block.update({
             'type': 'reorg',
-            'block_number': reorg_block,
-            'reorg_block': reorg_block
-        }
+        })
 
 
     def _clear_block_from_number(self, end_block):
@@ -201,7 +204,7 @@ class ReorgService:
         responses = self._batch_web3_provider.make_batch_request(
             json.dumps(block_header_rpc))
 
-        for response in responses:
+        for index, response in enumerate(responses):
             result = response.get('result')
             number = hex_to_dec(result.get('number'))
             block_hash = result.get('hash')
@@ -209,7 +212,23 @@ class ReorgService:
                 raise RuntimeError(f'Missing {number} height block hash!')
 
             if self._blockhash_capacity_dict.get(number) == block_hash.lower():
-                return number
+                reorg_block = responses[index - 1].get('result')
+                return {
+                    'number': hex_to_dec(reorg_block.get('number')),
+                    'reorg_block_hash': block_hash,
+                    'hash': reorg_block.get('hash'),
+                    'miner': reorg_block.get('miner'),
+                    'mixHash': reorg_block.get('mixHash'),
+                    'nonce': reorg_block.get('nonce'),
+                    'parentHash': reorg_block.get('parentHash'),
+                    'receiptsRoot': reorg_block.get('receiptsRoot'),
+                    'size': reorg_block.get('size'),
+                    'stateRoot': reorg_block.get('stateRoot'),
+                    'timestamp': reorg_block.get('timestamp'),
+                    'totalDifficulty': reorg_block.get('totalDifficulty'),
+                    'transactionsRoot': reorg_block.get('transactionsRoot'),
+                    'uncle_hash': reorg_block.get('uncle_hash'),
+                }
 
         return self.find_reorg_block(start_block - 1)
 

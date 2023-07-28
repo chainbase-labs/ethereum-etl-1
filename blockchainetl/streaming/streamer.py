@@ -106,8 +106,9 @@ class Streamer:
             except ReorgException as e:
                 logging.error(f"There's been a block rollback."
                               f" We're fixing the block position {e.block_number}.")
-                write_last_synced_block(self.last_synced_block_file, e.block_number)
-                self.last_synced_block = e.block_number
+                reorg_prev_block = e.block_number - 1
+                write_last_synced_block(self.last_synced_block_file, reorg_prev_block)
+                self.last_synced_block = reorg_prev_block
 
 
         return blocks_to_sync

@@ -62,8 +62,8 @@ class KafkaItemExporter:
                 logger.info(f'Writes a reorg message {reorg_message}')
                 self.send_message(topic_name, reorg_message)
 
-            # for item in value:
-            #     self.send_message(topic_name, item)
+            for item in value:
+                self.send_message(topic_name, item)
         self.producer.flush(timeout=30)
         logger.info("End of sending")
 

@@ -123,8 +123,10 @@ class EthStreamerAdapter:
         logging.info('Exporting with ' + type(self.item_exporter).__name__)
 
         reorg_messages = []
-        if start_block <= self.reorg_service.reorg_block and self.reorg_service.reorg_block <= end_block:
-            reorg_messages.append(self.reorg_service.create_reorg_message(self.reorg_service.reorg_block))
+        if self.reorg_service.reorg_block is not None:
+            reorg_block_number = self.reorg_service.reorg_block.get('number')
+            if start_block <= reorg_block_number and reorg_block_number <= end_block:
+                reorg_messages.append(self.reorg_service.create_reorg_message(self.reorg_service.reorg_block))
 
 
         all_items = \
