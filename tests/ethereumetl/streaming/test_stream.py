@@ -41,11 +41,11 @@ def read_resource(resource_group, file_name):
 
 
 @pytest.mark.parametrize("start_block, end_block, batch_size, resource_group, entity_types, provider_type, node_client", [
-    (1755634, 1755635, 1, 'blocks_1755634_1755635', EntityType.ALL_FOR_INFURA, 'mock', 'ergion'),
+    (1755634, 1755635, 1, 'blocks_1755634_1755635', EntityType.ALL_FOR_INFURA, 'mock', 'erigon'),
     skip_if_slow_tests_disabled([1755634, 1755635, 1, 'blocks_1755634_1755635', EntityType.ALL_FOR_INFURA, 'infura', 'geth']),
-    (508110, 508110, 1, 'blocks_508110_508110', ['trace', 'contract', 'token'], 'mock', 'ergion'),
-    (2112234, 2112234, 1, 'blocks_2112234_2112234', ['trace', 'contract', 'token'], 'mock', 'ergion'),
-    skip_if_slow_tests_disabled([17173049, 17173050, 1, 'blocks_17173049_17173050', EntityType.ALL_FOR_INFURA, 'infura', 'ergion']),
+    (508110, 508110, 1, 'blocks_508110_508110', ['trace', 'contract', 'token'], 'mock', 'erigon'),
+    (2112234, 2112234, 1, 'blocks_2112234_2112234', ['trace', 'contract', 'token'], 'mock', 'erigon'),
+    skip_if_slow_tests_disabled([17173049, 17173050, 1, 'blocks_17173049_17173050', EntityType.ALL_FOR_INFURA, 'infura', 'erigon']),
 ])
 def test_stream(tmpdir, start_block, end_block, batch_size, resource_group, entity_types, provider_type, node_client):
     try:

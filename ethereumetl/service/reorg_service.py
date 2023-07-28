@@ -43,6 +43,7 @@ class ReorgService:
     _last_sync_block_hash: str
     _batch_web3_provider = None
     _batch_count = 100
+    reorg_block = 0
 
     def __init__(
         self, capacity, batch_web3_provider,
@@ -128,7 +129,7 @@ class ReorgService:
                 last_block.get('number'),
                 f"Reorganization is highly occurring in the current block {last_block.get('number')} {last_block.get('hash')}"
             )
-        self.logger.debug(
+        self.logger.info(
             f"Check batch that block height {last_block.get('number')} is correct")
 
         # write hash to block
@@ -157,15 +158,25 @@ class ReorgService:
         if block.get(
             'parent_hash').lower() == self._blockhash_capacity_dict.get(
             prev_block):
-            self.logger.debug(
+            self.logger.info(
                 f"Check that block height {prev_block} is correct")
             return
 
         reorg_start_block = self.find_reorg_block(prev_block)
         self._clear_block_from_number(reorg_start_block)
+        self.reorg_block = reorg_start_block + 1
         raise ReorgException(
             reorg_start_block,
             f'A block reorg occurred at block height {reorg_start_block}')
+
+    @staticmethod
+    def create_reorg_message(reorg_block):
+        return {
+            'type': 'reorg',
+            'block_number': reorg_block,
+            'reorg_block': reorg_block
+        }
+
 
     def _clear_block_from_number(self, end_block):
         valid_block_hash = {
@@ -194,9 +205,10 @@ class ReorgService:
             result = response.get('result')
             number = hex_to_dec(result.get('number'))
             block_hash = result.get('hash')
-            if number in self._blockhash_capacity_dict \
-                and self._blockhash_capacity_dict.get(
-                number) == block_hash.lower():
+            if number not in self._blockhash_capacity_dict:
+                raise RuntimeError(f'Missing {number} height block hash!')
+
+            if self._blockhash_capacity_dict.get(number) == block_hash.lower():
                 return number
 
         return self.find_reorg_block(start_block - 1)

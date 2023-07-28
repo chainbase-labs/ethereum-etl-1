@@ -14,6 +14,7 @@ from ethereumetl.jobs.extract_contracts_job import ExtractContractsJob
 from ethereumetl.jobs.extract_token_transfers_job import \
     ExtractTokenTransfersJob
 from ethereumetl.jobs.extract_tokens_job import ExtractTokensJob
+from ethereumetl.service.reorg_service import ReorgService
 from ethereumetl.streaming.enrich import enrich_transactions, enrich_logs, \
     enrich_token_transfers, enrich_traces, \
     enrich_contracts, enrich_tokens, enrich_traces_with_blocks_transactions, \
@@ -35,7 +36,7 @@ class EthStreamerAdapter:
             max_workers=5,
             chain='ethereum',
             entity_types=tuple(EntityType.ALL_FOR_STREAMING),
-            reorg_service=None):
+            reorg_service: ReorgService =None):
         self.batch_web3_provider = batch_web3_provider
         self.node_client = node_client
         self.item_exporter = item_exporter
@@ -67,7 +68,7 @@ class EthStreamerAdapter:
         sorted_enriched_blocks = sort_by(enriched_blocks, 'number')
 
         # Check if reorg occurs
-        if self.reorg_service is not None:
+        if self.reorg_service is not None and len(sorted_enriched_blocks) != 0:
             self.reorg_service.check_batch(sorted_enriched_blocks)
 
         # Export receipts and logs
@@ -120,7 +121,14 @@ class EthStreamerAdapter:
             if EntityType.TOKEN in self.entity_types else []
 
         logging.info('Exporting with ' + type(self.item_exporter).__name__)
+
+        reorg_messages = []
+        if start_block <= self.reorg_service.reorg_block and self.reorg_service.reorg_block <= end_block:
+            reorg_messages.append(self.reorg_service.create_reorg_message(self.reorg_service.reorg_block))
+
+
         all_items = \
+            reorg_messages + \
             sorted_enriched_blocks + \
             sort_by(enriched_transactions, ('block_number', 'transaction_index')) + \
             sort_by(enriched_logs, ('block_number', 'log_index')) + \
