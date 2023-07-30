@@ -2,13 +2,12 @@ import collections
 import json
 import logging
 import sys
-
-from kafka import KafkaProducer
 from collections import defaultdict
 
-from ethereumetl.service.reorg_service import ReorgService
+from kafka import KafkaProducer
 
 logger = logging.getLogger(__name__)
+
 
 class KafkaItemExporter:
 
@@ -17,18 +16,19 @@ class KafkaItemExporter:
         self.connection_url = self.get_connection_url(output)
         print(self.connection_url)
         self.producer = KafkaProducer(
-            bootstrap_servers=self.connection_url,
-            retries=sys.maxsize,
-            max_in_flight_requests_per_connection=1,
-            linger_ms=20,
-            batch_size=16384 * 32
+                bootstrap_servers=self.connection_url,
+                retries=sys.maxsize,
+                max_in_flight_requests_per_connection=1,
+                linger_ms=20,
+                batch_size=16384 * 32
         )
 
     def get_connection_url(self, output):
         try:
             return output.split('/')[1]
         except KeyError:
-            raise Exception('Invalid kafka output param, It should be in format of "kafka/127.0.0.1:9092"')
+            raise Exception(
+                'Invalid kafka output param, It should be in format of "kafka/127.0.0.1:9092"')
 
     def open(self):
         pass
@@ -46,18 +46,19 @@ class KafkaItemExporter:
 
         logger.info("Start sending")
         for key, value in group.items():
-            topic_name = self.item_type_to_topic_mapping[key]
-
-            if topic_name is None:
+            if key not in self.item_type_to_topic_mapping:
                 # ignore topic name is None
                 continue
+
+            topic_name = self.item_type_to_topic_mapping[key]
             """
             if(check has reorg block):
                 write_reorg_message();
             """
             if group.get('reorg') is not None:
                 if len(group.get('reorg')) != 1:
-                    raise RuntimeError(f"reorg occurs at multiple block heights {group.get('reorg')}")
+                    raise RuntimeError(
+                        f"reorg occurs at multiple block heights {group.get('reorg')}")
                 reorg_message = group.get('reorg').pop()
                 logger.info(f'Writes a reorg message {reorg_message}')
                 self.send_message(topic_name, reorg_message)

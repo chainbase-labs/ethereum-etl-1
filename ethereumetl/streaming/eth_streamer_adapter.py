@@ -36,7 +36,8 @@ class EthStreamerAdapter:
             max_workers=5,
             chain='ethereum',
             entity_types=tuple(EntityType.ALL_FOR_STREAMING),
-            reorg_service: ReorgService =None):
+            reorg_service: ReorgService = None
+    ):
         self.batch_web3_provider = batch_web3_provider
         self.node_client = node_client
         self.item_exporter = item_exporter
@@ -125,9 +126,10 @@ class EthStreamerAdapter:
         reorg_messages = []
         if self.reorg_service.reorg_block is not None:
             reorg_block_number = self.reorg_service.reorg_block.get('number')
-            if start_block <= reorg_block_number and reorg_block_number <= end_block:
-                reorg_messages.append(self.reorg_service.create_reorg_message(self.reorg_service.reorg_block))
-
+            if start_block <= reorg_block_number:
+                reorg_messages.append(
+                        self.reorg_service.create_reorg_message(self.reorg_service.reorg_block)
+                )
 
         all_items = \
             reorg_messages + \
@@ -143,6 +145,7 @@ class EthStreamerAdapter:
         self.calculate_item_timestamps(all_items)
 
         self.item_exporter.export_items(all_items)
+        self.reorg_service.save()
 
     def _export_blocks_and_transactions(self, start_block, end_block):
         blocks_and_transactions_item_exporter = InMemoryItemExporter(item_types=['block', 'transaction'])

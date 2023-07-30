@@ -98,12 +98,12 @@ class ReorgService:
             hex_to_dec(response.get('result').get('number')): response.get(
                 'result').get('hash') for response in responses
         })
-        self.save()
 
     def check_batch(self, export_block_items):
         """ Check to see if a reorg occurred on fetch """
 
-        sorted_block_items = sorted(export_block_items, key=lambda item: item.get('number'))
+        sorted_block_items = sorted(export_block_items,
+                                    key=lambda item: item.get('number'))
 
         start_block = min(
             sorted_block_items,
@@ -168,7 +168,8 @@ class ReorgService:
 
         self.reorg_block = self.find_reorg_block(prev_block)
         reorg_start_block = self.reorg_block.get('number')
-        self.logger.warning(f"Rollback occurs at the height of the discovery block, {self.reorg_block}.")
+        self.logger.warning(
+            f"Rollback occurs at the height of the discovery block, {self.reorg_block}.")
         self._clear_block_from_number(reorg_start_block - 1)
         raise ReorgException(
             reorg_start_block,
@@ -179,7 +180,7 @@ class ReorgService:
         reorg_block.update({
             'type': 'reorg',
         })
-
+        return reorg_block
 
     def _clear_block_from_number(self, end_block):
         valid_block_hash = {
@@ -188,7 +189,6 @@ class ReorgService:
         }
         self._blockhash_capacity_dict.clear()
         self._blockhash_capacity_dict.update(valid_block_hash)
-        self.save()
 
     def find_reorg_block(self, block_number: int):
         """ Find the height of the block where the reorg occurred """
@@ -215,18 +215,19 @@ class ReorgService:
                 reorg_block = responses[index - 1].get('result')
                 return {
                     'number': hex_to_dec(reorg_block.get('number')),
-                    'reorg_block_hash': block_hash,
+                    'reorg_block_hash': self._blockhash_capacity_dict.get(
+                        number + 1),
                     'hash': reorg_block.get('hash'),
                     'miner': reorg_block.get('miner'),
-                    'mixHash': reorg_block.get('mixHash'),
+                    'mix_hash': reorg_block.get('mixHash'),
                     'nonce': reorg_block.get('nonce'),
-                    'parentHash': reorg_block.get('parentHash'),
-                    'receiptsRoot': reorg_block.get('receiptsRoot'),
+                    'parent_hash': reorg_block.get('parentHash'),
+                    'receipts_root': reorg_block.get('receiptsRoot'),
                     'size': reorg_block.get('size'),
-                    'stateRoot': reorg_block.get('stateRoot'),
+                    'state_root': reorg_block.get('stateRoot'),
                     'timestamp': reorg_block.get('timestamp'),
-                    'totalDifficulty': reorg_block.get('totalDifficulty'),
-                    'transactionsRoot': reorg_block.get('transactionsRoot'),
+                    'total_difficulty': reorg_block.get('totalDifficulty'),
+                    'transactions_root': reorg_block.get('transactionsRoot'),
                     'uncle_hash': reorg_block.get('uncle_hash'),
                 }
 
@@ -236,4 +237,3 @@ class ReorgService:
         self._blockhash_capacity_dict.update({
             block_number: block_hash
         })
-        self.save()
