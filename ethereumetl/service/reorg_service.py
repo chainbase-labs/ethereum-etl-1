@@ -214,7 +214,7 @@ class ReorgService:
             if self._blockhash_capacity_dict.get(number) == block_hash.lower():
                 reorg_block = responses[index - 1].get('result')
                 return {
-                    'number': hex_to_dec(reorg_block.get('number')),
+                    'block_number': hex_to_dec(reorg_block.get('number')),
                     'reorg_block_hash': self._blockhash_capacity_dict.get(
                         number + 1),
                     'hash': reorg_block.get('hash'),
