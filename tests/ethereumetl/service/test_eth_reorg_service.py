@@ -143,4 +143,4 @@ def test_find_prev_reorg(resource_group, provider_type, block_number,
         )
         reorg_service.init_block_hash_file(block_number)
         reorg_block = reorg_service.find_reorg_block(block_number)
-        assert reorg_block.get('number') == reorg_block_number
+        assert reorg_block.get('block_number') == reorg_block_number

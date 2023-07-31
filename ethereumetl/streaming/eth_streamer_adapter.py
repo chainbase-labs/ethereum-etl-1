@@ -125,7 +125,7 @@ class EthStreamerAdapter:
 
         reorg_messages = []
         if self.reorg_service.reorg_block is not None:
-            reorg_block_number = self.reorg_service.reorg_block.get('number')
+            reorg_block_number = self.reorg_service.reorg_block.get('block_number')
             if start_block <= reorg_block_number:
                 reorg_messages.append(
                         self.reorg_service.create_reorg_message(self.reorg_service.reorg_block)
