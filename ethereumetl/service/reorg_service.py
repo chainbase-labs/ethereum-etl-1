@@ -167,7 +167,7 @@ class ReorgService:
             return
 
         self.reorg_block = self.find_reorg_block(prev_block)
-        reorg_start_block = self.reorg_block.get('number')
+        reorg_start_block = self.reorg_block.get('block_number')
         self.logger.warning(
             f"Rollback occurs at the height of the discovery block, {self.reorg_block}.")
         self._clear_block_from_number(reorg_start_block - 1)
