@@ -64,9 +64,7 @@ class EthStreamerAdapter:
         if self._should_export(EntityType.BLOCK) or self._should_export(EntityType.TRANSACTION):
             blocks, transactions = self._export_blocks_and_transactions(start_block, end_block)
 
-        enriched_blocks = blocks \
-            if EntityType.BLOCK in self.entity_types else []
-        sorted_enriched_blocks = sort_by(enriched_blocks, 'number')
+        sorted_enriched_blocks = sort_by(blocks, 'number')
 
         # Check if reorg occurs
         if self.reorg_service is not None and len(sorted_enriched_blocks) != 0:
@@ -102,6 +100,8 @@ class EthStreamerAdapter:
         if self._should_export(EntityType.TOKEN):
             tokens = self._extract_tokens(contracts)
 
+        enriched_blocks = blocks \
+            if EntityType.BLOCK in self.entity_types else []
         enriched_transactions = enrich_l2_transactions(transactions, receipts) \
             if EntityType.TRANSACTION in self.entity_types and self.chain[0] == "optimism" \
             else enrich_transactions(transactions, receipts) if EntityType.TRANSACTION in self.entity_types else []
@@ -133,7 +133,7 @@ class EthStreamerAdapter:
 
         all_items = \
             reorg_messages + \
-            sorted_enriched_blocks + \
+            sort_by(enriched_blocks, 'number') + \
             sort_by(enriched_transactions, ('block_number', 'transaction_index')) + \
             sort_by(enriched_logs, ('block_number', 'log_index')) + \
             sort_by(enriched_token_transfers, ('block_number', 'log_index')) + \
