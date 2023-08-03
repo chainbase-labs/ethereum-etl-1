@@ -59,7 +59,7 @@ class KafkaItemExporter:
                 if len(group.get('reorg')) != 1:
                     raise RuntimeError(
                         f"reorg occurs at multiple block heights {group.get('reorg')}")
-                reorg_message = group.get('reorg').pop()
+                reorg_message = group.get('reorg')[0]
                 logger.info(f'Writes a reorg message {reorg_message}')
                 self.send_message(topic_name, reorg_message)
 
