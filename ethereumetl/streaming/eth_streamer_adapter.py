@@ -14,8 +14,11 @@ from ethereumetl.jobs.extract_contracts_job import ExtractContractsJob
 from ethereumetl.jobs.extract_token_transfers_job import \
     ExtractTokenTransfersJob
 from ethereumetl.jobs.extract_tokens_job import ExtractTokensJob
-from ethereumetl.streaming.enrich import enrich_transactions, enrich_logs, enrich_token_transfers, enrich_traces, \
-    enrich_contracts, enrich_tokens, enrich_traces_with_blocks_transactions, enrich_l2_transactions
+from ethereumetl.service.reorg_service import ReorgService
+from ethereumetl.streaming.enrich import enrich_transactions, enrich_logs, \
+    enrich_token_transfers, enrich_traces, \
+    enrich_contracts, enrich_tokens, enrich_traces_with_blocks_transactions, \
+    enrich_l2_transactions
 from ethereumetl.streaming.eth_item_id_calculator import EthItemIdCalculator
 from ethereumetl.streaming.eth_item_timestamp_calculator import \
     EthItemTimestampCalculator
@@ -32,7 +35,9 @@ class EthStreamerAdapter:
             batch_size=100,
             max_workers=5,
             chain='ethereum',
-            entity_types=tuple(EntityType.ALL_FOR_STREAMING)):
+            entity_types=tuple(EntityType.ALL_FOR_STREAMING),
+            reorg_service: ReorgService = None
+    ):
         self.batch_web3_provider = batch_web3_provider
         self.node_client = node_client
         self.item_exporter = item_exporter
@@ -42,6 +47,7 @@ class EthStreamerAdapter:
         self.entity_types = entity_types
         self.item_id_calculator = EthItemIdCalculator()
         self.item_timestamp_calculator = EthItemTimestampCalculator()
+        self.reorg_service = reorg_service
 
     def open(self):
         self.item_exporter.open()
@@ -53,8 +59,16 @@ class EthStreamerAdapter:
     def export_all(self, start_block, end_block):
         # Export blocks and transactions
         blocks, transactions = [], []
+
+        # TODO Check to see if a rollback occurred on the previous block
         if self._should_export(EntityType.BLOCK) or self._should_export(EntityType.TRANSACTION):
             blocks, transactions = self._export_blocks_and_transactions(start_block, end_block)
+
+        sorted_enriched_blocks = sort_by(blocks, 'number')
+
+        # Check if reorg occurs
+        if self.reorg_service is not None and len(sorted_enriched_blocks) != 0:
+            self.reorg_service.check_batch(sorted_enriched_blocks)
 
         # Export receipts and logs
         receipts, logs = [], []
@@ -101,7 +115,7 @@ class EthStreamerAdapter:
         # geth 直接拿到的trace 没有txs hash,status等信息，contract表的计算依赖status,因此需要在trace enrich之后，在计算一次
         if self.node_client == "geth" and self._should_export(EntityType.CONTRACT):
             contracts = self._export_contracts(enriched_traces)
-            
+
         enriched_contracts = enrich_contracts(blocks, contracts) \
             if EntityType.CONTRACT in self.entity_types else []
         enriched_tokens = enrich_tokens(blocks, tokens) \
@@ -109,7 +123,16 @@ class EthStreamerAdapter:
 
         logging.info('Exporting with ' + type(self.item_exporter).__name__)
 
+        reorg_messages = []
+        if self.reorg_service.reorg_block is not None:
+            reorg_block_number = self.reorg_service.reorg_block.get('block_number')
+            if start_block <= reorg_block_number:
+                reorg_messages.append(
+                        self.reorg_service.create_reorg_message(self.reorg_service.reorg_block)
+                )
+
         all_items = \
+            reorg_messages + \
             sort_by(enriched_blocks, 'number') + \
             sort_by(enriched_transactions, ('block_number', 'transaction_index')) + \
             sort_by(enriched_logs, ('block_number', 'log_index')) + \
@@ -122,6 +145,7 @@ class EthStreamerAdapter:
         self.calculate_item_timestamps(all_items)
 
         self.item_exporter.export_items(all_items)
+        self.reorg_service.save()
 
     def _export_blocks_and_transactions(self, start_block, end_block):
         blocks_and_transactions_item_exporter = InMemoryItemExporter(item_types=['block', 'transaction'])

@@ -24,9 +24,14 @@
 import os
 
 
-def read_resource(groups, file_name):
+def get_resource(groups, file_name):
     current_file_dir = os.path.dirname(__file__)
     fixture_file_name = os.path.join(current_file_dir, *groups, file_name)
+    return fixture_file_name
+
+
+def read_resource(groups, file_name):
+    fixture_file_name = get_resource(groups, file_name)
 
     if not os.path.exists(fixture_file_name):
         raise ValueError('File does not exist: ' + fixture_file_name)

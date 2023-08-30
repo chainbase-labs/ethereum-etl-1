@@ -25,8 +25,10 @@ import logging
 import os
 import time
 
+from blockchainetl.service.monitor_service import MonitorService
 from blockchainetl.streaming.streamer_adapter_stub import StreamerAdapterStub
 from blockchainetl.file_utils import smart_open
+from ethereumetl.service.reorg_service import ReorgException
 
 
 class Streamer:
@@ -40,7 +42,8 @@ class Streamer:
             period_seconds=10,
             block_batch_size=10,
             retry_errors=True,
-            pid_file=None):
+            pid_file=None,
+            monitor_service: MonitorService = None):
         self.blockchain_streamer_adapter = blockchain_streamer_adapter
         self.last_synced_block_file = last_synced_block_file
         self.lag = lag
@@ -50,10 +53,10 @@ class Streamer:
         self.block_batch_size = block_batch_size
         self.retry_errors = retry_errors
         self.pid_file = pid_file
+        self.monitor_service = monitor_service
 
         if self.start_block is not None or not os.path.isfile(self.last_synced_block_file):
             init_last_synced_block_file((self.start_block or 0) - 1, self.last_synced_block_file)
-
         self.last_synced_block = read_last_synced_block(self.last_synced_block_file)
 
     def stream(self):
@@ -77,11 +80,15 @@ class Streamer:
                 synced_blocks = self._sync_cycle()
             except Exception as e:
                 # https://stackoverflow.com/a/4992124/1580227
-                logging.exception('An exception occurred while syncing block data.')
+                logging.exception(f'An exception occurred while syncing block data. {e}')
                 if not self.retry_errors:
                     raise e
+                else:
+                    self.monitor_service.send_error(block_number=self.last_synced_block, error=e)
 
             if synced_blocks <= 0:
+                if self.period_seconds == 0:
+                    continue
                 logging.info('Nothing to sync. Sleeping for {} seconds...'.format(self.period_seconds))
                 time.sleep(self.period_seconds)
 
@@ -91,14 +98,25 @@ class Streamer:
         target_block = self._calculate_target_block(current_block, self.last_synced_block)
         blocks_to_sync = max(target_block - self.last_synced_block, 0)
 
-        logging.info('Current block {}, target block {}, last synced block {}, blocks to sync {}'.format(
-            current_block, target_block, self.last_synced_block, blocks_to_sync))
-
         if blocks_to_sync != 0:
-            self.blockchain_streamer_adapter.export_all(self.last_synced_block + 1, target_block)
-            logging.info('Writing last synced block {}'.format(target_block))
-            write_last_synced_block(self.last_synced_block_file, target_block)
-            self.last_synced_block = target_block
+            logging.info('Current block {}, target block {}, last synced block {}, blocks to sync {}'.format(
+                current_block, target_block, self.last_synced_block, blocks_to_sync))
+
+            try:
+                self.blockchain_streamer_adapter.export_all(
+                    self.last_synced_block + 1, target_block)
+                logging.info(
+                    'Writing last synced block {}'.format(target_block))
+                write_last_synced_block(self.last_synced_block_file, target_block)
+                self.last_synced_block = target_block
+            except ReorgException as e:
+                logging.error(f"There's been a block rollback."
+                              f" We're fixing the block position {e.block_number}.")
+                reorg_prev_block = e.block_number - 1
+                write_last_synced_block(self.last_synced_block_file, reorg_prev_block)
+                self.last_synced_block = reorg_prev_block
+            except Exception as e:
+                raise e
 
         return blocks_to_sync
 

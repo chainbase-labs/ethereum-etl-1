@@ -50,5 +50,6 @@ ENV/
 
 # etl
 /last_synced_block.txt
+/last_sync_block_hash.json
 
 .idea/*
