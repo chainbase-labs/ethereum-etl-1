@@ -46,7 +46,7 @@ def generate_trace_block_by_number_json_rpc_with_timeout(block_numbers, time_out
             continue
         yield generate_json_rpc(
             method='debug_traceBlockByNumber',
-            params=[hex(block_number), {'tracer': 'callTracer', 'timeout': time_out}],
+            params=[hex(block_number), {'tracer': 'callTracer', 'timeout': time_out, 'tracerConfig': {'onlyTopCall': False}}],
             # save block_number in request ID, so later we can identify block number in response
             request_id=block_number,
         )
