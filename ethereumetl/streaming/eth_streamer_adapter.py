@@ -26,6 +26,11 @@ from ethereumetl.thread_local_proxy import ThreadLocalProxy
 from ethereumetl.web3_utils import build_web3
 
 
+class OP_STATUS:
+    INSERT: str = 'I'
+    DELETE: str = 'D'
+
+
 class EthStreamerAdapter:
     def __init__(
             self,
@@ -123,16 +128,10 @@ class EthStreamerAdapter:
 
         logging.info('Exporting with ' + type(self.item_exporter).__name__)
 
-        reorg_messages = []
-        if self.reorg_service.reorg_block is not None:
-            reorg_block_number = self.reorg_service.reorg_block.get('block_number')
-            if start_block <= reorg_block_number:
-                reorg_messages.append(
-                        self.reorg_service.create_reorg_message(self.reorg_service.reorg_block)
-                )
+        reorg_stream_cdc_messages = self._get_reorg_cdc_streaming_message(start_block)
 
         all_items = \
-            reorg_messages + \
+            reorg_stream_cdc_messages + \
             sort_by(enriched_blocks, 'number') + \
             sort_by(enriched_transactions, ('block_number', 'transaction_index')) + \
             sort_by(enriched_logs, ('block_number', 'log_index')) + \
@@ -141,11 +140,23 @@ class EthStreamerAdapter:
             sort_by(enriched_contracts, ('block_number',)) + \
             sort_by(enriched_tokens, ('block_number',))
 
-        self.calculate_item_ids(all_items)
-        self.calculate_item_timestamps(all_items)
+        self.calculate_item_info(all_items)
 
         self.item_exporter.export_items(all_items)
         self.reorg_service.save()
+
+    def _get_reorg_cdc_streaming_message(self, start_block: int) -> list[dict]:
+        if self.reorg_service.reorg_block is not None:
+            reorg_block_number = self.reorg_service.reorg_block.get('block_number')
+            if start_block <= reorg_block_number:
+                reorg_block_range = self.reorg_service.reorg_block.get('reorg_block_range')
+                reorg_streaming_record = self.reorg_service.get_delete_record(reorg_block_range.items(), self.entity_types)
+                for item in reorg_streaming_record:
+                    item.update({
+                        'op': OP_STATUS.DELETE
+                    })
+                return reorg_streaming_record
+        return []
 
     def _export_blocks_and_transactions(self, start_block, end_block):
         blocks_and_transactions_item_exporter = InMemoryItemExporter(item_types=['block', 'transaction'])
@@ -284,13 +295,13 @@ class EthStreamerAdapter:
 
         raise ValueError('Unexpected entity type ' + entity_type)
 
-    def calculate_item_ids(self, items):
+    def calculate_item_info(self, items):
         for item in items:
-            item['item_id'] = self.item_id_calculator.calculate(item)
-
-    def calculate_item_timestamps(self, items):
-        for item in items:
-            item['item_timestamp'] = self.item_timestamp_calculator.calculate(item)
+            item.update({
+                'item_id': self.item_id_calculator.calculate(item),
+                'item_timestamp': self.item_timestamp_calculator.calculate(item),
+                'op': OP_STATUS.INSERT if 'op' not in item else item.get('op')
+            })
 
     def close(self):
         self.item_exporter.close()

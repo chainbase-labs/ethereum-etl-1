@@ -82,11 +82,9 @@ from ethereumetl.thread_local_proxy import ThreadLocalProxy
 @click.option('--monitor-endpoint', default=None, show_default=True, type=str,
               help='exception monitor endpoint')
 def stream(last_synced_block_file, lag, last_sync_block_hash, provider_uri,
-        output, start_block,
-        end_block, entity_types,
-        period_seconds=10, batch_size=2, block_batch_size=10, max_workers=5,
-        chain='ethereum', node_client='erigon', log_name='INFO', log_file=None,
-        pid_file=None, monitor_endpoint=None):
+           output, start_block, end_block, entity_types, period_seconds=10, batch_size=2, block_batch_size=10,
+           max_workers=5, chain='ethereum', node_client='erigon', log_name='INFO', log_file=None, pid_file=None,
+           monitor_endpoint=None):
     """Streams all data types to console or Google Pub/Sub."""
     configure_logging(log_file, log_name)
     configure_signals()
@@ -100,37 +98,38 @@ def stream(last_synced_block_file, lag, last_sync_block_hash, provider_uri,
     logging.info('Using ' + provider_uri)
 
     reorg_service = ReorgService(
-            capacity=1000,
-            batch_web3_provider=ThreadLocalProxy(
-                    lambda: get_provider_from_uri(provider_uri, batch=True)),
-            last_sync_block_hash=last_sync_block_hash
+        capacity=1000,
+        batch_web3_provider=ThreadLocalProxy(
+            lambda: get_provider_from_uri(provider_uri, batch=True)),
+        last_sync_block_hash=last_sync_block_hash,
+        output=output
     ) if lag == 0 else None
 
     monitor_service = MonitorService(
-            endpoint=monitor_endpoint,
-            blockchain=chain
+        endpoint=monitor_endpoint,
+        blockchain=chain
     )
     streamer_adapter = EthStreamerAdapter(
-            batch_web3_provider=ThreadLocalProxy(
-                    lambda: get_provider_from_uri(provider_uri, batch=True)),
-            node_client=node_client,
-            item_exporter=create_item_exporters(output, chain),
-            batch_size=batch_size,
-            max_workers=max_workers,
-            entity_types=entity_types,
-            chain=chain,
-            reorg_service=reorg_service
+        batch_web3_provider=ThreadLocalProxy(
+            lambda: get_provider_from_uri(provider_uri, batch=True)),
+        node_client=node_client,
+        item_exporter=create_item_exporters(output, chain),
+        batch_size=batch_size,
+        max_workers=max_workers,
+        entity_types=entity_types,
+        chain=chain,
+        reorg_service=reorg_service
     )
     streamer = Streamer(
-            blockchain_streamer_adapter=streamer_adapter,
-            last_synced_block_file=last_synced_block_file,
-            lag=lag,
-            start_block=start_block,
-            end_block=end_block,
-            period_seconds=period_seconds,
-            block_batch_size=block_batch_size,
-            pid_file=pid_file,
-            monitor_service=monitor_service
+        blockchain_streamer_adapter=streamer_adapter,
+        last_synced_block_file=last_synced_block_file,
+        lag=lag,
+        start_block=start_block,
+        end_block=end_block,
+        period_seconds=period_seconds,
+        block_batch_size=block_batch_size,
+        pid_file=pid_file,
+        monitor_service=monitor_service
     )
     streamer.stream()
 
@@ -142,10 +141,10 @@ def parse_entity_types(entity_types):
     for entity_type in entity_types:
         if entity_type not in EntityType.ALL_FOR_STREAMING:
             raise click.BadOptionUsage(
-                    '--entity-type',
-                    '{} is not an available entity type. Supply a comma separated list of types from {}'
-                    .format(entity_type,
-                            ','.join(EntityType.ALL_FOR_STREAMING)))
+                '--entity-type',
+                '{} is not an available entity type. Supply a comma separated list of types from {}'
+                .format(entity_type,
+                        ','.join(EntityType.ALL_FOR_STREAMING)))
 
     return entity_types
 
