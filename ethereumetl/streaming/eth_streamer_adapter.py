@@ -150,7 +150,8 @@ class EthStreamerAdapter:
             reorg_block_number = self.reorg_service.reorg_block.get('block_number')
             if start_block <= reorg_block_number:
                 reorg_block_range = self.reorg_service.reorg_block.get('reorg_block_range')
-                reorg_streaming_record = self.reorg_service.get_delete_record(reorg_block_range.items(), self.entity_types)
+                block_number_list = [int(item) for item in reorg_block_range.keys()]
+                reorg_streaming_record = self.reorg_service.get_delete_record(block_number_list, self.entity_types)
                 for item in reorg_streaming_record:
                     item.update({
                         'op': OP_STATUS.DELETE

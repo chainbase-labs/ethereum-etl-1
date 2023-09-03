@@ -27,14 +27,13 @@ class CacheService:
             self.redis_client.zadd(sorted_set_key, mapping={
                 self.serialize(data): block_number
             })
-            self.redis_client.zremrangebyscore(sorted_set_key, min=0, max=block_number - self.cache_block_count)
         else:
             self.redis_client.zremrangebyscore(sorted_set_key, min=block_number, max=block_number)
             self.redis_client.zadd(sorted_set_key, mapping={
                 self.serialize(item): block_number for item in data
             })
 
-            self.redis_client.zremrangebyscore(sorted_set_key, min=0, max=block_number - self.cache_block_count)
+        self.redis_client.zremrangebyscore(sorted_set_key, min=0, max=block_number - self.cache_block_count)
 
     def read_cache(self, message_type, block_number) -> list:
         sorted_set_key = f"{self.chain}_{message_type}"
