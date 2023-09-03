@@ -1,20 +1,20 @@
 import json
-import os
 from urllib.parse import urlparse, parse_qs
 
 import redis
+from redis.cluster import RedisCluster
 from ethereumetl.enumeration.entity_type import EntityType
 
 
 class CacheService:
     chain: str = None
-    redis_client: redis.Redis = None
+    redis_client: RedisCluster = None
     cache_block_count = 250
 
     def __init__(self, chain: str, output: str):
         self.chain = chain
         connection_opt = parse_schema(output)
-        self.redis_client = redis.Redis(**{
+        self.redis_client = RedisCluster(**{
             'host': connection_opt.get('host'),
             'port': connection_opt.get('port'),
             'db': connection_opt.get('db'),
