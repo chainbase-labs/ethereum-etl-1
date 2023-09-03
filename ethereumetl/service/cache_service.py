@@ -1,7 +1,6 @@
 import json
 from urllib.parse import urlparse, parse_qs
 
-import redis
 from redis.cluster import RedisCluster
 from ethereumetl.enumeration.entity_type import EntityType
 

@@ -102,6 +102,7 @@ def stream(last_synced_block_file, lag, last_sync_block_hash, provider_uri,
         batch_web3_provider=ThreadLocalProxy(
             lambda: get_provider_from_uri(provider_uri, batch=True)),
         last_sync_block_hash=last_sync_block_hash,
+        chain=chain,
         output=output
     ) if lag == 0 else None
 
