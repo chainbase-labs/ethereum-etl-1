@@ -37,7 +37,7 @@ class CacheService:
 
             self.redis_client.zremrangebyscore(sorted_set_key, min=0, max=block_number - self.cache_block_count)
 
-    def read_cache(self, message_type, block_number) -> dict | list[dict]:
+    def read_cache(self, message_type, block_number) -> list:
         sorted_set_key = f"{self.chain}_{message_type}"
         result_list = self.redis_client.zrangebyscore(sorted_set_key, min=block_number, max=block_number)
         decoded_list = [self.deserialize(item) for item in result_list]
