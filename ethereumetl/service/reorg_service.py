@@ -70,7 +70,7 @@ class ReorgService:
             try:
                 content = json.loads("".join(file_handle.readlines()))
                 self._blockhash_capacity_dict.update(
-                        {int(key): value for key, value in content.items()})
+                    {int(key): value for key, value in content.items()})
                 return True
             except Exception as e:
                 self.logger.error('Error reading contents of block hash file',
@@ -84,19 +84,18 @@ class ReorgService:
             if self.read_from_file():
                 return
 
-        block_header_rpc = list(
-                generate_get_block_by_number_json_rpc(
-                        range(block_number, block_number - self._batch_count,
-                              -1),
-                        include_transactions=False
-                )
-        )
+        last_block = max(block_number - self._batch_count, 0)
+        block_header_rpc = list(generate_get_block_by_number_json_rpc(range(block_number, last_block, -1), include_transactions=False))
+
+        if len(block_header_rpc) <= 0:
+            return
+
         responses = self._batch_web3_provider.make_batch_request(
-                json.dumps(block_header_rpc))
+            json.dumps(block_header_rpc))
 
         self._blockhash_capacity_dict.update({
             hex_to_dec(response.get('result').get('number')): response.get(
-                    'result').get('hash') for response in responses
+                'result').get('hash') for response in responses
         })
 
     def check_batch(self, export_block_items):
@@ -106,8 +105,8 @@ class ReorgService:
                                     key=lambda item: item.get('number'))
 
         start_block = min(
-                sorted_block_items,
-                key=lambda item: item.get('number')
+            sorted_block_items,
+            key=lambda item: item.get('number')
         )
         self.check_prev_block(start_block)
 
@@ -116,13 +115,13 @@ class ReorgService:
             current_block = sorted_block_items[index]
             if prev_block.get('hash') != current_block.get('parent_hash'):
                 raise BatchReorgException(
-                        prev_block.get('number'),
-                        f"Reorganization is highly occurring in the current block {prev_block.get('number')} {prev_block.get('hash')}"
+                    prev_block.get('number'),
+                    f"Reorganization is highly occurring in the current block {prev_block.get('number')} {prev_block.get('hash')}"
                 )
 
         last_block = max(
-                sorted_block_items,
-                key=lambda item: item.get('number')
+            sorted_block_items,
+            key=lambda item: item.get('number')
         )
 
         if not self.check_block_hash(
@@ -130,11 +129,11 @@ class ReorgService:
                 last_block.get('hash')
         ):
             raise BatchReorgException(
-                    last_block.get('number'),
-                    f"Reorganization is highly occurring in the current block {last_block.get('number')} {last_block.get('hash')}"
+                last_block.get('number'),
+                f"Reorganization is highly occurring in the current block {last_block.get('number')} {last_block.get('hash')}"
             )
         self.logger.info(
-                f"Check batch that block height {last_block.get('number')} is correct")
+            f"Check batch that block height {last_block.get('number')} is correct")
 
         # write hash to block
         for item in sorted_block_items:
@@ -144,7 +143,7 @@ class ReorgService:
         if target_hash is None:
             return True
         response = self._batch_web3_provider.make_request(
-                'eth_getBlockByNumber', [hex(block_number), False]
+            'eth_getBlockByNumber', [hex(block_number), False]
         )
         result = response.get('result')
         block_hash = result.get('hash')
@@ -159,21 +158,24 @@ class ReorgService:
         prev_block = block.get('number') - 1
         self.init_block_hash_file(prev_block)
 
+        if prev_block <= 0:
+            return
+
         if block.get(
                 'parent_hash').lower() == self._blockhash_capacity_dict.get(
-                prev_block):
+            prev_block):
             self.logger.info(
-                    f"Check that block height {prev_block} is correct")
+                f"Check that block height {prev_block} is correct")
             return
 
         self.reorg_block = self.find_reorg_block(prev_block)
         reorg_start_block = self.reorg_block.get('block_number')
         self.logger.warning(
-                f"Rollback occurs at the height of the discovery block, {self.reorg_block}.")
+            f"Rollback occurs at the height of the discovery block, {self.reorg_block}.")
         self._clear_block_from_number(reorg_start_block - 1)
         raise ReorgException(
-                reorg_start_block,
-                f'A block reorg occurred at block height {reorg_start_block}')
+            reorg_start_block,
+            f'A block reorg occurred at block height {reorg_start_block}')
 
     @staticmethod
     def create_reorg_message(reorg_block: dict):
@@ -196,13 +198,13 @@ class ReorgService:
         start_block = max(block_number - self._batch_count, 0)
 
         block_header_rpc = list(
-                generate_get_block_by_number_json_rpc(
-                        range(block_number, start_block, -1),
-                        include_transactions=False
-                )
+            generate_get_block_by_number_json_rpc(
+                range(block_number, start_block, -1),
+                include_transactions=False
+            )
         )
         responses = self._batch_web3_provider.make_batch_request(
-                json.dumps(block_header_rpc))
+            json.dumps(block_header_rpc))
 
         for index, response in enumerate(responses):
             result = response.get('result')
@@ -222,7 +224,7 @@ class ReorgService:
                 return {
                     'block_number': hex_to_dec(reorg_block.get('number')),
                     'reorg_block_hash': self._blockhash_capacity_dict.get(
-                            number + 1),
+                        number + 1),
                     'hash': reorg_block.get('hash'),
                     'miner': reorg_block.get('miner'),
                     'mix_hash': reorg_block.get('mixHash'),
