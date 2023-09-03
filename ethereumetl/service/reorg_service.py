@@ -231,7 +231,7 @@ class ReorgService:
             block_number: block_hash
         })
 
-    def get_delete_record(self, block_numbers, entity_types) -> list[dict]:
+    def get_delete_record(self, block_numbers, entity_types) -> list:
         records = []
         for entity_type in entity_types:
             for block_number in sorted(block_numbers):

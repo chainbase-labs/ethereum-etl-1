@@ -145,7 +145,7 @@ class EthStreamerAdapter:
         self.item_exporter.export_items(all_items)
         self.reorg_service.save()
 
-    def _get_reorg_cdc_streaming_message(self, start_block: int) -> list[dict]:
+    def _get_reorg_cdc_streaming_message(self, start_block: int) -> list:
         if self.reorg_service.reorg_block is not None:
             reorg_block_number = self.reorg_service.reorg_block.get('block_number')
             if start_block <= reorg_block_number:
