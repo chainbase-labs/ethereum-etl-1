@@ -2,16 +2,20 @@ import collections
 import json
 import logging
 import sys
+import time
 from collections import defaultdict
 
 from kafka import KafkaProducer
+
+from ethereumetl.streaming.eth_streamer_adapter import OP_STATUS
 
 logger = logging.getLogger(__name__)
 
 
 class KafkaItemExporter:
+    debezium_json: bool = False
 
-    def __init__(self, output, item_type_to_topic_mapping):
+    def __init__(self, output, item_type_to_topic_mapping, debezium_json=False):
         self.item_type_to_topic_mapping = item_type_to_topic_mapping
         self.connection_url = self.get_connection_url(output)
         print(self.connection_url)
@@ -22,6 +26,7 @@ class KafkaItemExporter:
                 linger_ms=1000,
                 batch_size=16384 * 32
         )
+        self.debezium_json = debezium_json
 
     def get_connection_url(self, output):
         try:
@@ -32,6 +37,24 @@ class KafkaItemExporter:
 
     def open(self):
         pass
+
+    def _convert_to_debezium_json(self, converted_item):
+        if converted_item["op"] == OP_STATUS.INSERT:
+            return {
+                "before": None,
+                "after": converted_item,
+                "op": OP_STATUS.INSERT,
+                "ts_ms": int(time.time() * 1000),
+                "type": converted_item["type"],
+            }
+        else:
+            return {
+                "before": converted_item,
+                "after": None,
+                "op": OP_STATUS.DELETE,
+                "ts_ms": int(time.time() * 1000),
+                "type": converted_item["type"],
+            }
 
     def export_items(self, items):
         group = defaultdict(list)
@@ -51,26 +74,16 @@ class KafkaItemExporter:
                 continue
 
             topic_name = self.item_type_to_topic_mapping[key]
-            """
-            if(check has reorg block):
-                write_reorg_message();
-            """
-            if group.get('reorg') is not None:
-                if len(group.get('reorg')) != 1:
-                    raise RuntimeError(
-                        f"reorg occurs at multiple block heights {group.get('reorg')}")
-                reorg_message = group.get('reorg')[0]
-                logger.info(f'Writes a reorg message {reorg_message}')
-                self.send_message(topic_name, reorg_message)
-
             for item in value:
                 self.send_message(topic_name, item)
         self.producer.flush(timeout=30)
         logger.info("End of sending")
 
     def send_message(self, topic_name, message):
-      message_byte = json.dumps(message).encode('utf-8')
-      self.producer.send(topic_name, value=message_byte).add_errback(self.fail)
+        if self.debezium_json:
+            message = self._convert_to_debezium_json(message)
+        message_byte = json.dumps(message).encode('utf-8')
+        self.producer.send(topic_name, value=message_byte).add_errback(self.fail)
 
     def fail(self, error):
         logger.exception(f"Send message to kafka failed: {error}.",
@@ -92,4 +105,3 @@ class KafkaItemExporter:
 
     def close(self):
         pass
-
