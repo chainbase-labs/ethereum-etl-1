@@ -25,8 +25,7 @@ import random
 import click
 
 from blockchainetl.service.monitor_service import MonitorService
-from blockchainetl.streaming.streaming_utils import configure_signals, \
-    configure_logging
+from blockchainetl.streaming.streaming_utils import configure_signals, configure_logging
 from ethereumetl.enumeration.entity_type import EntityType
 
 from ethereumetl.providers.auto import get_provider_from_uri
@@ -35,58 +34,102 @@ from ethereumetl.streaming.item_exporter_creator import create_item_exporters
 from ethereumetl.thread_local_proxy import ThreadLocalProxy
 
 
-@click.command(context_settings=dict(help_option_names=['-h', '--help']))
-@click.option('-l', '--last-synced-block-file', default='last_synced_block.txt',
-              show_default=True, type=str, help='')
-@click.option('--lag', default=0, show_default=True, type=int,
-              help='The number of blocks to lag behind the network.')
-@click.option('--last-sync-block-hash', default='last_sync_block_hash.json',
-              show_default=True, type=str, help='last sync block hash dict')
-@click.option('-p', '--provider-uri', default='https://mainnet.infura.io',
-              show_default=True, type=str,
-              help='The URI of the web3 provider e.g. '
-                   'file://$HOME/Library/Ethereum/geth.ipc or https://mainnet.infura.io')
-@click.option('-o', '--output', type=str,
-              help='Either Google PubSub topic path e.g. projects/your-project/topics/crypto_ethereum; '
-                   'or Postgres connection url e.g. postgresql+pg8000://postgres:admin@127.0.0.1:5432/ethereum; '
-                   'or GCS bucket e.g. gs://your-bucket-name; '
-                   'or kafka, output name and connection host:port e.g. kafka/127.0.0.1:9092 '
-                   'or Kinesis, e.g. kinesis://your-data-stream-name'
-                   'If not specified will print to console')
-@click.option('-s', '--start-block', default=None, show_default=True, type=int,
-              help='Start block')
-@click.option('-end', '--end-block', default=None, show_default=True, type=int,
-              help='End block')
-@click.option('-e', '--entity-types',
-              default=','.join(EntityType.ALL_FOR_INFURA), show_default=True,
-              type=str,
-              help='The list of entity types to export.')
-@click.option('--period-seconds', default=10, show_default=True, type=int,
-              help='How many seconds to sleep between syncs')
-@click.option('-b', '--batch-size', default=10, show_default=True, type=int,
-              help='How many blocks to batch in single request')
-@click.option('-B', '--block-batch-size', default=1, show_default=True,
-              type=int, help='How many blocks to batch in single sync round')
-@click.option('-w', '--max-workers', default=5, show_default=True, type=int,
-              help='The number of workers')
-@click.option('-c', '--chain', default='ethereum', show_default=True, type=str,
-              help='The name of chain which will be synced')
-@click.option('-n', '--node-client', default='erigon', show_default=True,
-              type=str, help='The name of evm client which will be used')
-@click.option('--log-file', default=None, show_default=True, type=str,
-              help='Log file')
-@click.option('--log-name', default='INFO', show_default=True, type=str,
-              help='Log level')
-@click.option('--pid-file', default=None, show_default=True, type=str,
-              help='pid file')
-@click.option('--monitor-endpoint', default=None, show_default=True, type=str,
-              help='exception monitor endpoint')
-def stream(last_synced_block_file, lag, last_sync_block_hash, provider_uri,
-        output, start_block,
-        end_block, entity_types,
-        period_seconds=10, batch_size=2, block_batch_size=10, max_workers=5,
-        chain='ethereum', node_client='erigon', log_name='INFO', log_file=None,
-        pid_file=None, monitor_endpoint=None):
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.option("-l", "--last-synced-block-file", default="last_synced_block.txt", show_default=True, type=str, help="")
+@click.option("--lag", default=0, show_default=True, type=int, help="The number of blocks to lag behind the network.")
+@click.option(
+    "--last-sync-block-hash",
+    default="last_sync_block_hash.json",
+    show_default=True,
+    type=str,
+    help="last sync block hash dict",
+)
+@click.option(
+    "-p",
+    "--provider-uri",
+    default="https://mainnet.infura.io",
+    show_default=True,
+    type=str,
+    help="The URI of the web3 provider e.g. " "file://$HOME/Library/Ethereum/geth.ipc or https://mainnet.infura.io",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=str,
+    help="Either Google PubSub topic path e.g. projects/your-project/topics/crypto_ethereum; "
+    "or Postgres connection url e.g. postgresql+pg8000://postgres:admin@127.0.0.1:5432/ethereum; "
+    "or GCS bucket e.g. gs://your-bucket-name; "
+    "or kafka, output name and connection host:port e.g. kafka/127.0.0.1:9092 "
+    "or Kinesis, e.g. kinesis://your-data-stream-name"
+    "If not specified will print to console",
+)
+@click.option("-s", "--start-block", default=None, show_default=True, type=int, help="Start block")
+@click.option("-end", "--end-block", default=None, show_default=True, type=int, help="End block")
+@click.option(
+    "-e",
+    "--entity-types",
+    default=",".join(EntityType.ALL_FOR_INFURA),
+    show_default=True,
+    type=str,
+    help="The list of entity types to export.",
+)
+@click.option(
+    "--period-seconds", default=10, show_default=True, type=int, help="How many seconds to sleep between syncs"
+)
+@click.option(
+    "-b", "--batch-size", default=10, show_default=True, type=int, help="How many blocks to batch in single request"
+)
+@click.option(
+    "-B",
+    "--block-batch-size",
+    default=1,
+    show_default=True,
+    type=int,
+    help="How many blocks to batch in single sync round",
+)
+@click.option("-w", "--max-workers", default=5, show_default=True, type=int, help="The number of workers")
+@click.option(
+    "-c", "--chain", default="ethereum", show_default=True, type=str, help="The name of chain which will be synced"
+)
+@click.option(
+    "-n",
+    "--node-client",
+    default="erigon",
+    show_default=True,
+    type=str,
+    help="The name of evm client which will be used",
+)
+@click.option("--log-file", default=None, show_default=True, type=str, help="Log file")
+@click.option("--log-name", default="INFO", show_default=True, type=str, help="Log level")
+@click.option("--pid-file", default=None, show_default=True, type=str, help="pid file")
+@click.option("--monitor-endpoint", default=None, show_default=True, type=str, help="exception monitor endpoint")
+@click.option(
+    "--debezium-json",
+    default=False,
+    is_flag=True,
+    type=bool,
+)
+def stream(
+    last_synced_block_file,
+    lag,
+    last_sync_block_hash,
+    provider_uri,
+    output,
+    start_block,
+    end_block,
+    entity_types,
+    period_seconds=10,
+    batch_size=2,
+    block_batch_size=10,
+    max_workers=5,
+    chain="ethereum",
+    node_client="erigon",
+    log_name="INFO",
+    log_file=None,
+    pid_file=None,
+    monitor_endpoint=None,
+    debezium_json=False,
+):
     """Streams all data types to console or Google Pub/Sub."""
     configure_logging(log_file, log_name)
     configure_signals()
@@ -97,59 +140,62 @@ def stream(last_synced_block_file, lag, last_sync_block_hash, provider_uri,
 
     # TODO: Implement fallback mechanism for provider uris instead of picking randomly
     provider_uri = pick_random_provider_uri(provider_uri)
-    logging.info('Using ' + provider_uri)
+    logging.info("Using " + provider_uri)
 
-    reorg_service = ReorgService(
+    reorg_service = (
+        ReorgService(
             capacity=1000,
-            batch_web3_provider=ThreadLocalProxy(
-                    lambda: get_provider_from_uri(provider_uri, batch=True)),
-            last_sync_block_hash=last_sync_block_hash
-    ) if lag == 0 else None
-
-    monitor_service = MonitorService(
-            endpoint=monitor_endpoint,
-            blockchain=chain
-    )
-    streamer_adapter = EthStreamerAdapter(
-            batch_web3_provider=ThreadLocalProxy(
-                    lambda: get_provider_from_uri(provider_uri, batch=True)),
-            node_client=node_client,
-            item_exporter=create_item_exporters(output, chain),
-            batch_size=batch_size,
-            max_workers=max_workers,
-            entity_types=entity_types,
+            batch_web3_provider=ThreadLocalProxy(lambda: get_provider_from_uri(provider_uri, batch=True)),
+            last_sync_block_hash=last_sync_block_hash,
             chain=chain,
-            reorg_service=reorg_service
+            output=output,
+        )
+        if lag == 0
+        else None
+    )
+
+    monitor_service = MonitorService(endpoint=monitor_endpoint, blockchain=chain)
+    streamer_adapter = EthStreamerAdapter(
+        batch_web3_provider=ThreadLocalProxy(lambda: get_provider_from_uri(provider_uri, batch=True)),
+        node_client=node_client,
+        item_exporter=create_item_exporters(output, chain),
+        batch_size=batch_size,
+        max_workers=max_workers,
+        entity_types=entity_types,
+        chain=chain,
+        reorg_service=reorg_service,
+        debezium_json=debezium_json,
     )
     streamer = Streamer(
-            blockchain_streamer_adapter=streamer_adapter,
-            last_synced_block_file=last_synced_block_file,
-            lag=lag,
-            start_block=start_block,
-            end_block=end_block,
-            period_seconds=period_seconds,
-            block_batch_size=block_batch_size,
-            pid_file=pid_file,
-            monitor_service=monitor_service
+        blockchain_streamer_adapter=streamer_adapter,
+        last_synced_block_file=last_synced_block_file,
+        lag=lag,
+        start_block=start_block,
+        end_block=end_block,
+        period_seconds=period_seconds,
+        block_batch_size=block_batch_size,
+        pid_file=pid_file,
+        monitor_service=monitor_service,
     )
     streamer.stream()
 
 
 def parse_entity_types(entity_types):
-    entity_types = [c.strip() for c in entity_types.split(',')]
+    entity_types = [c.strip() for c in entity_types.split(",")]
 
     # validate passed types
     for entity_type in entity_types:
         if entity_type not in EntityType.ALL_FOR_STREAMING:
             raise click.BadOptionUsage(
-                    '--entity-type',
-                    '{} is not an available entity type. Supply a comma separated list of types from {}'
-                    .format(entity_type,
-                            ','.join(EntityType.ALL_FOR_STREAMING)))
+                "--entity-type",
+                "{} is not an available entity type. Supply a comma separated list of types from {}".format(
+                    entity_type, ",".join(EntityType.ALL_FOR_STREAMING)
+                ),
+            )
 
     return entity_types
 
 
 def pick_random_provider_uri(provider_uri):
-    provider_uris = [uri.strip() for uri in provider_uri.split(',')]
+    provider_uris = [uri.strip() for uri in provider_uri.split(",")]
     return random.choice(provider_uris)

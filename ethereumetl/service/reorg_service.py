@@ -5,6 +5,7 @@ from collections import OrderedDict
 
 from blockchainetl.file_utils import smart_open
 from ethereumetl.json_rpc_requests import generate_get_block_by_number_json_rpc
+from ethereumetl.service.cache_service import CacheService
 from ethereumetl.utils import hex_to_dec
 
 
@@ -44,12 +45,15 @@ class ReorgService:
     _batch_web3_provider = None
     _batch_count = 100
     reorg_block = None
+    cache_service: CacheService
 
     def __init__(
             self, capacity, batch_web3_provider,
             last_sync_block_hash='last_sync_block_hash.json',
             batch_count=100,
-            readonly=False
+            readonly=False,
+            chain=None,
+            output: str = None,
     ):
         self._capacity = capacity
         self._blockhash_capacity_dict = FixedCapacityDict(capacity)
@@ -58,6 +62,11 @@ class ReorgService:
         self._batch_count = batch_count
         self.logger = logging.getLogger('ReorgService')
         self.readonly = readonly
+
+        if output is not None:
+            redis_output = [item for item in output.split(',') if item.startswith('redis://')]
+            if len(redis_output) > 0:
+                self.cache_service = CacheService(chain=chain, output=redis_output[0])
 
     def save(self):
         if self.readonly:
@@ -69,8 +78,7 @@ class ReorgService:
         with smart_open(self._last_sync_block_hash, 'r') as file_handle:
             try:
                 content = json.loads("".join(file_handle.readlines()))
-                self._blockhash_capacity_dict.update(
-                    {int(key): value for key, value in content.items()})
+                self._blockhash_capacity_dict.update({int(key): value for key, value in content.items()})
                 return True
             except Exception as e:
                 self.logger.error('Error reading contents of block hash file',
@@ -86,16 +94,12 @@ class ReorgService:
 
         last_block = max(block_number - self._batch_count, 0)
         block_header_rpc = list(generate_get_block_by_number_json_rpc(range(block_number, last_block, -1), include_transactions=False))
-
         if len(block_header_rpc) <= 0:
             return
 
-        responses = self._batch_web3_provider.make_batch_request(
-            json.dumps(block_header_rpc))
-
+        responses = self._batch_web3_provider.make_batch_request(json.dumps(block_header_rpc))
         self._blockhash_capacity_dict.update({
-            hex_to_dec(response.get('result').get('number')): response.get(
-                'result').get('hash') for response in responses
+            hex_to_dec(response.get('result').get('number')): response.get('result').get('hash') for response in responses
         })
 
     def check_batch(self, export_block_items):
@@ -156,10 +160,9 @@ class ReorgService:
         """
 
         prev_block = block.get('number') - 1
-        self.init_block_hash_file(prev_block)
-
         if prev_block <= 0:
             return
+        self.init_block_hash_file(prev_block)
 
         if block.get(
                 'parent_hash').lower() == self._blockhash_capacity_dict.get(
@@ -177,13 +180,6 @@ class ReorgService:
             reorg_start_block,
             f'A block reorg occurred at block height {reorg_start_block}')
 
-    @staticmethod
-    def create_reorg_message(reorg_block: dict):
-        reorg_block.update({
-            'type': 'reorg',
-        })
-        return reorg_block
-
     def _clear_block_from_number(self, end_block):
         valid_block_hash = {
             key: value for key, value in self._blockhash_capacity_dict.items()
@@ -197,15 +193,8 @@ class ReorgService:
 
         start_block = max(block_number - self._batch_count, 0)
 
-        block_header_rpc = list(
-            generate_get_block_by_number_json_rpc(
-                range(block_number, start_block, -1),
-                include_transactions=False
-            )
-        )
-        responses = self._batch_web3_provider.make_batch_request(
-            json.dumps(block_header_rpc))
-
+        block_header_rpc = list(generate_get_block_by_number_json_rpc(range(block_number, start_block, -1), include_transactions=False))
+        responses = self._batch_web3_provider.make_batch_request(json.dumps(block_header_rpc))
         for index, response in enumerate(responses):
             result = response.get('result')
             number = hex_to_dec(result.get('number'))
@@ -216,15 +205,10 @@ class ReorgService:
             if self._blockhash_capacity_dict.get(number) == block_hash.lower():
                 reorg_block = responses[index - 1].get('result')
 
-                reorg_block_range = {
-                    key: value for key, value in
-                    self._blockhash_capacity_dict.items()
-                    if key > number
-                }
+                reorg_block_range = {key: value for key, value in self._blockhash_capacity_dict.items() if key > number}
                 return {
                     'block_number': hex_to_dec(reorg_block.get('number')),
-                    'reorg_block_hash': self._blockhash_capacity_dict.get(
-                        number + 1),
+                    'reorg_block_hash': self._blockhash_capacity_dict.get(number + 1),
                     'hash': reorg_block.get('hash'),
                     'miner': reorg_block.get('miner'),
                     'mix_hash': reorg_block.get('mixHash'),
@@ -246,3 +230,11 @@ class ReorgService:
         self._blockhash_capacity_dict.update({
             block_number: block_hash
         })
+
+    def get_delete_record(self, block_numbers, entity_types) -> list:
+        records = []
+        for entity_type in entity_types:
+            for block_number in sorted(block_numbers):
+                item_result = self.cache_service.read_cache(entity_type, block_number)
+                records += item_result if isinstance(item_result, list) else [item_result]
+        return records

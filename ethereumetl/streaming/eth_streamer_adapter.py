@@ -1,9 +1,8 @@
 import logging
+import time
 
-from blockchainetl.jobs.exporters.console_item_exporter import \
-    ConsoleItemExporter
-from blockchainetl.jobs.exporters.in_memory_item_exporter import \
-    InMemoryItemExporter
+from blockchainetl.jobs.exporters.console_item_exporter import ConsoleItemExporter
+from blockchainetl.jobs.exporters.in_memory_item_exporter import InMemoryItemExporter
 from ethereumetl.enumeration.entity_type import EntityType
 from ethereumetl.jobs.export_block_receipts_job import ExportBlockReceiptsJob
 from ethereumetl.jobs.export_blocks_job import ExportBlocksJob
@@ -11,43 +10,54 @@ from ethereumetl.jobs.export_geth_traces_job import ExportGethTracesJob
 from ethereumetl.jobs.export_receipts_job import ExportReceiptsJob
 from ethereumetl.jobs.export_traces_job import ExportTracesJob
 from ethereumetl.jobs.extract_contracts_job import ExtractContractsJob
-from ethereumetl.jobs.extract_token_transfers_job import \
-    ExtractTokenTransfersJob
+from ethereumetl.jobs.extract_token_transfers_job import ExtractTokenTransfersJob
 from ethereumetl.jobs.extract_tokens_job import ExtractTokensJob
 from ethereumetl.service.reorg_service import ReorgService
-from ethereumetl.streaming.enrich import enrich_transactions, enrich_logs, \
-    enrich_token_transfers, enrich_traces, \
-    enrich_contracts, enrich_tokens, enrich_traces_with_blocks_transactions, \
-    enrich_l2_transactions
+from ethereumetl.streaming.enrich import (
+    enrich_transactions,
+    enrich_logs,
+    enrich_token_transfers,
+    enrich_traces,
+    enrich_contracts,
+    enrich_tokens,
+    enrich_traces_with_blocks_transactions,
+    enrich_l2_transactions,
+)
 from ethereumetl.streaming.eth_item_id_calculator import EthItemIdCalculator
-from ethereumetl.streaming.eth_item_timestamp_calculator import \
-    EthItemTimestampCalculator
+from ethereumetl.streaming.eth_item_timestamp_calculator import EthItemTimestampCalculator
 from ethereumetl.thread_local_proxy import ThreadLocalProxy
 from ethereumetl.web3_utils import build_web3
 
 
+class OP_STATUS:
+    INSERT: str = "c"
+    DELETE: str = "d"
+
+
 class EthStreamerAdapter:
     def __init__(
-            self,
-            batch_web3_provider,
-            node_client,
-            item_exporter=ConsoleItemExporter(),
-            batch_size=100,
-            max_workers=5,
-            chain='ethereum',
-            entity_types=tuple(EntityType.ALL_FOR_STREAMING),
-            reorg_service: ReorgService = None
+        self,
+        batch_web3_provider,
+        node_client,
+        item_exporter=ConsoleItemExporter(),
+        batch_size=100,
+        max_workers=5,
+        chain="ethereum",
+        entity_types=tuple(EntityType.ALL_FOR_STREAMING),
+        reorg_service: ReorgService = None,
+        debezium_json=False,
     ):
         self.batch_web3_provider = batch_web3_provider
         self.node_client = node_client
         self.item_exporter = item_exporter
         self.batch_size = batch_size
         self.max_workers = max_workers
-        self.chain = chain,
+        self.chain = (chain,)
         self.entity_types = entity_types
         self.item_id_calculator = EthItemIdCalculator()
         self.item_timestamp_calculator = EthItemTimestampCalculator()
         self.reorg_service = reorg_service
+        self.debezium_json = debezium_json
 
     def open(self):
         self.item_exporter.open()
@@ -64,7 +74,7 @@ class EthStreamerAdapter:
         if self._should_export(EntityType.BLOCK) or self._should_export(EntityType.TRANSACTION):
             blocks, transactions = self._export_blocks_and_transactions(start_block, end_block)
 
-        sorted_enriched_blocks = sort_by(blocks, 'number')
+        sorted_enriched_blocks = sort_by(blocks, "number")
 
         # Check if reorg occurs
         if self.reorg_service is not None and len(sorted_enriched_blocks) != 0:
@@ -73,7 +83,7 @@ class EthStreamerAdapter:
         # Export receipts and logs
         receipts, logs = [], []
         if self._should_export(EntityType.RECEIPT) or self._should_export(EntityType.LOG):
-            if self.node_client != 'erigon':
+            if self.node_client != "erigon":
                 receipts, logs = self._export_receipts_and_logs(transactions)
             else:
                 receipts, logs = self._export_receipts_and_logs_by_block(blocks)
@@ -100,55 +110,94 @@ class EthStreamerAdapter:
         if self._should_export(EntityType.TOKEN):
             tokens = self._extract_tokens(contracts)
 
-        enriched_blocks = blocks \
-            if EntityType.BLOCK in self.entity_types else []
-        enriched_transactions = enrich_l2_transactions(transactions, receipts) \
-            if EntityType.TRANSACTION in self.entity_types and self.chain[0] == "optimism" \
-            else enrich_transactions(transactions, receipts) if EntityType.TRANSACTION in self.entity_types else []
-        enriched_logs = enrich_logs(blocks, logs) \
-            if EntityType.LOG in self.entity_types else []
-        enriched_token_transfers = enrich_token_transfers(blocks, token_transfers) \
-            if EntityType.TOKEN_TRANSFER in self.entity_types else []
-        enriched_traces = (enrich_traces_with_blocks_transactions(blocks, traces, transactions)
-                           if EntityType.TRACE in self.entity_types and self.node_client == "geth"
-                           else enrich_traces(blocks, traces) if EntityType.TRACE in self.entity_types else [])
+        enriched_blocks = blocks if EntityType.BLOCK in self.entity_types else []
+        enriched_transactions = (
+            enrich_l2_transactions(transactions, receipts)
+            if EntityType.TRANSACTION in self.entity_types and self.chain[0] == "optimism"
+            else enrich_transactions(transactions, receipts)
+            if EntityType.TRANSACTION in self.entity_types
+            else []
+        )
+        enriched_logs = enrich_logs(blocks, logs) if EntityType.LOG in self.entity_types else []
+        enriched_token_transfers = (
+            enrich_token_transfers(blocks, token_transfers) if EntityType.TOKEN_TRANSFER in self.entity_types else []
+        )
+        enriched_traces = (
+            enrich_traces_with_blocks_transactions(blocks, traces, transactions)
+            if EntityType.TRACE in self.entity_types and self.node_client == "geth"
+            else enrich_traces(blocks, traces)
+            if EntityType.TRACE in self.entity_types
+            else []
+        )
         # geth 直接拿到的trace 没有txs hash,status等信息，contract表的计算依赖status,因此需要在trace enrich之后，在计算一次
         if self.node_client == "geth" and self._should_export(EntityType.CONTRACT):
             contracts = self._export_contracts(enriched_traces)
 
-        enriched_contracts = enrich_contracts(blocks, contracts) \
-            if EntityType.CONTRACT in self.entity_types else []
-        enriched_tokens = enrich_tokens(blocks, tokens) \
-            if EntityType.TOKEN in self.entity_types else []
+        enriched_contracts = enrich_contracts(blocks, contracts) if EntityType.CONTRACT in self.entity_types else []
+        enriched_tokens = enrich_tokens(blocks, tokens) if EntityType.TOKEN in self.entity_types else []
 
-        logging.info('Exporting with ' + type(self.item_exporter).__name__)
+        logging.info("Exporting with " + type(self.item_exporter).__name__)
 
-        reorg_messages = []
-        if self.reorg_service.reorg_block is not None:
-            reorg_block_number = self.reorg_service.reorg_block.get('block_number')
-            if start_block <= reorg_block_number:
-                reorg_messages.append(
-                        self.reorg_service.create_reorg_message(self.reorg_service.reorg_block)
-                )
+        reorg_stream_cdc_messages = self._get_reorg_cdc_streaming_message(start_block)
 
-        all_items = \
-            reorg_messages + \
-            sort_by(enriched_blocks, 'number') + \
-            sort_by(enriched_transactions, ('block_number', 'transaction_index')) + \
-            sort_by(enriched_logs, ('block_number', 'log_index')) + \
-            sort_by(enriched_token_transfers, ('block_number', 'log_index')) + \
-            sort_by(enriched_traces, ('block_number', 'trace_index')) + \
-            sort_by(enriched_contracts, ('block_number',)) + \
-            sort_by(enriched_tokens, ('block_number',))
+        all_items = (
+            reorg_stream_cdc_messages
+            + sort_by(enriched_blocks, "number")
+            + sort_by(enriched_transactions, ("block_number", "transaction_index"))
+            + sort_by(enriched_logs, ("block_number", "log_index"))
+            + sort_by(enriched_token_transfers, ("block_number", "log_index"))
+            + sort_by(enriched_traces, ("block_number", "trace_index"))
+            + sort_by(enriched_contracts, ("block_number",))
+            + sort_by(enriched_tokens, ("block_number",))
+        )
 
-        self.calculate_item_ids(all_items)
-        self.calculate_item_timestamps(all_items)
+        self.calculate_item_info(all_items)
+        if self.debezium_json:
+            all_items = self._convert_to_debezium_json(all_items)
 
         self.item_exporter.export_items(all_items)
         self.reorg_service.save()
 
+    def _convert_to_debezium_json(self, items):
+        converted_items = []
+        for item in items:
+            if item["op"] == OP_STATUS.INSERT:
+                converted_items.append(
+                    {
+                        "before": None,
+                        "after": item,
+                        "op": OP_STATUS.INSERT,
+                        "ts_ms": int(time.time() * 1000),
+                        "type": item["type"],
+                    }
+                )
+            else:
+                converted_items.append(
+                    {
+                        "before": item,
+                        "after": None,
+                        "op": OP_STATUS.DELETE,
+                        "ts_ms": int(time.time() * 1000),
+                        "type": item["type"],
+                    }
+                )
+
+        return converted_items
+
+    def _get_reorg_cdc_streaming_message(self, start_block: int) -> list:
+        if self.reorg_service.reorg_block is not None:
+            reorg_block_number = self.reorg_service.reorg_block.get("block_number")
+            if start_block <= reorg_block_number:
+                reorg_block_range = self.reorg_service.reorg_block.get("reorg_block_range")
+                block_number_list = [int(item) for item in reorg_block_range.keys()]
+                reorg_streaming_record = self.reorg_service.get_delete_record(block_number_list, self.entity_types)
+                for item in reorg_streaming_record:
+                    item.update({"op": OP_STATUS.DELETE})
+                return reorg_streaming_record
+        return []
+
     def _export_blocks_and_transactions(self, start_block, end_block):
-        blocks_and_transactions_item_exporter = InMemoryItemExporter(item_types=['block', 'transaction'])
+        blocks_and_transactions_item_exporter = InMemoryItemExporter(item_types=["block", "transaction"])
         blocks_and_transactions_job = ExportBlocksJob(
             start_block=start_block,
             end_block=end_block,
@@ -158,58 +207,56 @@ class EthStreamerAdapter:
             item_exporter=blocks_and_transactions_item_exporter,
             chain=self.chain,
             export_blocks=self._should_export(EntityType.BLOCK),
-            export_transactions=self._should_export(EntityType.TRANSACTION)
+            export_transactions=self._should_export(EntityType.TRANSACTION),
         )
         blocks_and_transactions_job.run()
-        blocks = blocks_and_transactions_item_exporter.get_items('block')
-        transactions = blocks_and_transactions_item_exporter.get_items('transaction')
+        blocks = blocks_and_transactions_item_exporter.get_items("block")
+        transactions = blocks_and_transactions_item_exporter.get_items("transaction")
         return blocks, transactions
 
     def _export_receipts_and_logs_by_block(self, blocks):
-        exporter = InMemoryItemExporter(item_types=['receipt', 'log'])
+        exporter = InMemoryItemExporter(item_types=["receipt", "log"])
         job = ExportBlockReceiptsJob(
-            blocks_iterable=(block['number'] for block in blocks),
+            blocks_iterable=(block["number"] for block in blocks),
             batch_size=self.batch_size,
             batch_web3_provider=self.batch_web3_provider,
             max_workers=self.max_workers,
             item_exporter=exporter,
             export_receipts=self._should_export(EntityType.RECEIPT),
-            export_logs=self._should_export(EntityType.LOG)
+            export_logs=self._should_export(EntityType.LOG),
         )
         job.run()
-        receipts = exporter.get_items('receipt')
-        logs = exporter.get_items('log')
+        receipts = exporter.get_items("receipt")
+        logs = exporter.get_items("log")
         return receipts, logs
 
     def _export_receipts_and_logs(self, transactions):
-        exporter = InMemoryItemExporter(item_types=['receipt', 'log'])
+        exporter = InMemoryItemExporter(item_types=["receipt", "log"])
         job = ExportReceiptsJob(
-            transaction_hashes_iterable=(transaction['hash'] for transaction in transactions),
+            transaction_hashes_iterable=(transaction["hash"] for transaction in transactions),
             batch_size=self.batch_size,
             batch_web3_provider=self.batch_web3_provider,
             max_workers=self.max_workers,
             item_exporter=exporter,
             export_receipts=self._should_export(EntityType.RECEIPT),
-            export_logs=self._should_export(EntityType.LOG)
+            export_logs=self._should_export(EntityType.LOG),
         )
         job.run()
-        receipts = exporter.get_items('receipt')
-        logs = exporter.get_items('log')
+        receipts = exporter.get_items("receipt")
+        logs = exporter.get_items("log")
         return receipts, logs
 
     def _extract_token_transfers(self, logs):
-        exporter = InMemoryItemExporter(item_types=['token_transfer'])
+        exporter = InMemoryItemExporter(item_types=["token_transfer"])
         job = ExtractTokenTransfersJob(
-            logs_iterable=logs,
-            batch_size=self.batch_size,
-            max_workers=self.max_workers,
-            item_exporter=exporter)
+            logs_iterable=logs, batch_size=self.batch_size, max_workers=self.max_workers, item_exporter=exporter
+        )
         job.run()
-        token_transfers = exporter.get_items('token_transfer')
+        token_transfers = exporter.get_items("token_transfer")
         return token_transfers
 
     def _export_traces(self, start_block, end_block, node_client):
-        exporter = InMemoryItemExporter(item_types=['trace'])
+        exporter = InMemoryItemExporter(item_types=["trace"])
         if node_client == "geth":
             job = ExportGethTracesJob(
                 start_block=start_block,
@@ -217,7 +264,7 @@ class EthStreamerAdapter:
                 batch_size=self.batch_size,
                 batch_web3_provider=self.batch_web3_provider,
                 max_workers=self.max_workers,
-                item_exporter=exporter
+                item_exporter=exporter,
             )
         else:
             job = ExportTracesJob(
@@ -226,35 +273,32 @@ class EthStreamerAdapter:
                 batch_size=self.batch_size,
                 web3=ThreadLocalProxy(lambda: build_web3(self.batch_web3_provider)),
                 max_workers=self.max_workers,
-                item_exporter=exporter
+                item_exporter=exporter,
             )
 
         job.run()
-        traces = exporter.get_items('trace')
+        traces = exporter.get_items("trace")
         return traces
 
     def _export_contracts(self, traces):
-        exporter = InMemoryItemExporter(item_types=['contract'])
+        exporter = InMemoryItemExporter(item_types=["contract"])
         job = ExtractContractsJob(
-            traces_iterable=traces,
-            batch_size=self.batch_size,
-            max_workers=self.max_workers,
-            item_exporter=exporter
+            traces_iterable=traces, batch_size=self.batch_size, max_workers=self.max_workers, item_exporter=exporter
         )
         job.run()
-        contracts = exporter.get_items('contract')
+        contracts = exporter.get_items("contract")
         return contracts
 
     def _extract_tokens(self, contracts):
-        exporter = InMemoryItemExporter(item_types=['token'])
+        exporter = InMemoryItemExporter(item_types=["token"])
         job = ExtractTokensJob(
             contracts_iterable=contracts,
             web3=ThreadLocalProxy(lambda: build_web3(self.batch_web3_provider)),
             max_workers=self.max_workers,
-            item_exporter=exporter
+            item_exporter=exporter,
         )
         job.run()
-        tokens = exporter.get_items('token')
+        tokens = exporter.get_items("token")
         return tokens
 
     def _should_export(self, entity_type):
@@ -282,15 +326,17 @@ class EthStreamerAdapter:
         if entity_type == EntityType.TOKEN:
             return EntityType.TOKEN in self.entity_types
 
-        raise ValueError('Unexpected entity type ' + entity_type)
+        raise ValueError("Unexpected entity type " + entity_type)
 
-    def calculate_item_ids(self, items):
+    def calculate_item_info(self, items):
         for item in items:
-            item['item_id'] = self.item_id_calculator.calculate(item)
-
-    def calculate_item_timestamps(self, items):
-        for item in items:
-            item['item_timestamp'] = self.item_timestamp_calculator.calculate(item)
+            item.update(
+                {
+                    "item_id": self.item_id_calculator.calculate(item),
+                    "item_timestamp": self.item_timestamp_calculator.calculate(item),
+                    "op": OP_STATUS.INSERT if "op" not in item else item.get("op"),
+                }
+            )
 
     def close(self):
         self.item_exporter.close()

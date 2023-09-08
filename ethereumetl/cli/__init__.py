@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from blockchainetl.logging_utils import logging_basic_config
+
 logging_basic_config()
 
 import click
@@ -48,7 +49,7 @@ from ethereumetl.cli.stream import stream
 
 
 @click.group()
-@click.version_option(version='2.1.1')
+@click.version_option(version="2.1.1")
 @click.pass_context
 def cli(ctx):
     pass
