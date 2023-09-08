@@ -106,7 +106,7 @@ from ethereumetl.thread_local_proxy import ThreadLocalProxy
 @click.option(
     "--debezium-json",
     default=False,
-    show_default=True,
+    is_flag=True,
     type=bool,
 )
 def stream(
@@ -128,6 +128,7 @@ def stream(
     log_file=None,
     pid_file=None,
     monitor_endpoint=None,
+    debezium_json=False,
 ):
     """Streams all data types to console or Google Pub/Sub."""
     configure_logging(log_file, log_name)
@@ -163,6 +164,7 @@ def stream(
         entity_types=entity_types,
         chain=chain,
         reorg_service=reorg_service,
+        debezium_json=debezium_json,
     )
     streamer = Streamer(
         blockchain_streamer_adapter=streamer_adapter,

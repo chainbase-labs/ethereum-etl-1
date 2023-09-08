@@ -1,4 +1,5 @@
 import logging
+import time
 
 from blockchainetl.jobs.exporters.console_item_exporter import ConsoleItemExporter
 from blockchainetl.jobs.exporters.in_memory_item_exporter import InMemoryItemExporter
@@ -29,8 +30,8 @@ from ethereumetl.web3_utils import build_web3
 
 
 class OP_STATUS:
-    INSERT: str = "I"
-    DELETE: str = "D"
+    INSERT: str = "c"
+    DELETE: str = "d"
 
 
 class EthStreamerAdapter:
@@ -44,6 +45,7 @@ class EthStreamerAdapter:
         chain="ethereum",
         entity_types=tuple(EntityType.ALL_FOR_STREAMING),
         reorg_service: ReorgService = None,
+        debezium_json=False,
     ):
         self.batch_web3_provider = batch_web3_provider
         self.node_client = node_client
@@ -55,6 +57,7 @@ class EthStreamerAdapter:
         self.item_id_calculator = EthItemIdCalculator()
         self.item_timestamp_calculator = EthItemTimestampCalculator()
         self.reorg_service = reorg_service
+        self.debezium_json = debezium_json
 
     def open(self):
         self.item_exporter.open()
@@ -149,9 +152,37 @@ class EthStreamerAdapter:
         )
 
         self.calculate_item_info(all_items)
+        if self.debezium_json:
+            all_items = self._convert_to_debezium_json(all_items)
 
         self.item_exporter.export_items(all_items)
         self.reorg_service.save()
+
+    def _convert_to_debezium_json(self, items):
+        converted_items = []
+        for item in items:
+            if item["op"] == OP_STATUS.INSERT:
+                converted_items.append(
+                    {
+                        "before": None,
+                        "after": item,
+                        "op": OP_STATUS.INSERT,
+                        "ts_ms": int(time.time() * 1000),
+                        "type": item["type"],
+                    }
+                )
+            else:
+                converted_items.append(
+                    {
+                        "before": item,
+                        "after": None,
+                        "op": OP_STATUS.DELETE,
+                        "ts_ms": int(time.time() * 1000),
+                        "type": item["type"],
+                    }
+                )
+
+        return converted_items
 
     def _get_reorg_cdc_streaming_message(self, start_block: int) -> list:
         if self.reorg_service.reorg_block is not None:
