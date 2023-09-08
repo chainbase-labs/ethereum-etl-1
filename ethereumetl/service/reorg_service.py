@@ -92,7 +92,8 @@ class ReorgService:
             if self.read_from_file():
                 return
 
-        block_header_rpc = list(generate_get_block_by_number_json_rpc(range(block_number, max(block_number - self._batch_count, 0), -1), include_transactions=False))
+        last_block = max(block_number - self._batch_count, 0)
+        block_header_rpc = list(generate_get_block_by_number_json_rpc(range(block_number, last_block, -1), include_transactions=False))
         if len(block_header_rpc) <= 0:
             return
 
@@ -194,7 +195,6 @@ class ReorgService:
 
         block_header_rpc = list(generate_get_block_by_number_json_rpc(range(block_number, start_block, -1), include_transactions=False))
         responses = self._batch_web3_provider.make_batch_request(json.dumps(block_header_rpc))
-
         for index, response in enumerate(responses):
             result = response.get('result')
             number = hex_to_dec(result.get('number'))
