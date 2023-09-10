@@ -35,10 +35,14 @@ class CacheService:
         self.redis_client.zremrangebyscore(sorted_set_key, min=0, max=block_number - self.cache_block_count)
 
     def read_cache(self, message_type, block_number) -> list:
+        def get_index(item: dict):
+            sort_key = f"{message_type}_index"
+            return item.get(sort_key) if sort_key in item else 0
+
         sorted_set_key = f"{self.chain}_{message_type}"
         result_list = self.redis_client.zrangebyscore(sorted_set_key, min=block_number, max=block_number)
         decoded_list = [self.deserialize(item) for item in result_list]
-        return sorted(decoded_list, key=lambda a: a.get(f"{message_type}_index"))
+        return sorted(decoded_list, key=get_index)
 
     @staticmethod
     def serialize(message):
