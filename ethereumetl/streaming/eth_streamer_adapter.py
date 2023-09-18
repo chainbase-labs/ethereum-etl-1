@@ -300,9 +300,11 @@ class EthStreamerAdapter:
 
     def calculate_item_info(self, items):
         for item in items:
+
             item.update(
                 {
                     "item_id": self.item_id_calculator.calculate(item),
+                    "item_ns": time.time_ns(),
                     "item_timestamp": self.item_timestamp_calculator.calculate(item),
                     "op": OP_STATUS.INSERT if "op" not in item else item.get("op"),
                 }

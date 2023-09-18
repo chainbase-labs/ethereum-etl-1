@@ -232,6 +232,9 @@ class ReorgService:
         })
 
     def get_delete_record(self, block_numbers, entity_types) -> list:
+        if self.cache_service is None:
+            return []
+
         records = []
         for entity_type in entity_types:
             for block_number in sorted(block_numbers):
