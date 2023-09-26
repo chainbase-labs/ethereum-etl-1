@@ -29,3 +29,6 @@ class EthContract(object):
         self.is_erc20 = False
         self.is_erc721 = False
         self.block_number = None
+        self.from_address = None
+        self.transaction_hash = None
+        self.transaction_index = None
