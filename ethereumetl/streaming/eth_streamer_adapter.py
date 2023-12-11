@@ -262,7 +262,7 @@ class EthStreamerAdapter:
             return True
 
         if entity_type == EntityType.TRANSACTION:
-            return EntityType.TRANSACTION in self.entity_types or self._should_export(EntityType.LOG)
+            return EntityType.TRANSACTION in self.entity_types or self._should_export(EntityType.LOG) or self._should_export(EntityType.TRACE) or self._should_export(EntityType.CONTRACT)
 
         if entity_type == EntityType.RECEIPT:
             return EntityType.TRANSACTION in self.entity_types or self._should_export(EntityType.TOKEN_TRANSFER)
