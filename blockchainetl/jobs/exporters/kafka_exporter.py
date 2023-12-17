@@ -24,7 +24,7 @@ class KafkaItemExporter:
                 retries=sys.maxsize,
                 max_in_flight_requests_per_connection=1,
                 linger_ms=1000,
-                batch_size=16384 * 32
+                batch_size=16384 * 64
         )
         self.debezium_json = debezium_json
 
