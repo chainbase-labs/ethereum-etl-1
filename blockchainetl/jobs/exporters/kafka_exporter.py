@@ -76,6 +76,7 @@ class KafkaItemExporter:
             topic_name = self.item_type_to_topic_mapping[key]
             for item in value:
                 self.send_message(topic_name, item)
+        logger.info("Wait flush")
         self.producer.flush(timeout=30)
         logger.info("End of sending")
 

@@ -12,6 +12,7 @@ class MonitorService:
         self.endpoint = endpoint
         self.blockchain = blockchain
         self.logger = logging.getLogger('MonitorService')
+        self.last_alert_block = 0
 
     def send_error(self, block_number, error):
         try:
