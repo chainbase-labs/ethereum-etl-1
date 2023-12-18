@@ -13,19 +13,6 @@ from ethereumetl.streaming.eth_streamer_adapter import OP_STATUS
 logger = logging.getLogger(__name__)
 
 
-class CustomKafkaProducer(KafkaProducer):
-
-    def __int__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def _wait_on_metadata(self, topic, max_wait):
-        start_time = datetime.now()
-        result = super()._wait_on_metadata(topic, max_wait)
-        duration = datetime.now() - start_time
-        print(f"wait on metadata: {duration}ms")
-        return result
-
-
 class KafkaItemExporter:
     debezium_json: bool = False
 
@@ -43,7 +30,7 @@ class KafkaItemExporter:
             **kafka_options
         }
         print('kafka options', options)
-        self.producer = CustomKafkaProducer(**options)
+        self.producer = KafkaProducer(**options)
         self.debezium_json = debezium_json
 
     def get_kafka_option_from_env(self):
@@ -110,7 +97,10 @@ class KafkaItemExporter:
         if self.debezium_json:
             message = self._convert_to_debezium_json(message)
         message_byte = json.dumps(message).encode('utf-8')
+        start_time = datetime.now()
         self.producer.send(topic_name, value=message_byte)
+        duration = datetime.now() - start_time
+        logger.info(f"send single message {duration}ms, {len(message_byte)}")
 
     def fail(self, error):
         logger.exception(f"Send message to kafka failed: {error}.",
