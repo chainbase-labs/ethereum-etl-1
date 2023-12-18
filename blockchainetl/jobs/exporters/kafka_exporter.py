@@ -1,6 +1,7 @@
 import collections
 import json
 import logging
+import os
 import sys
 import time
 from collections import defaultdict
@@ -18,19 +19,31 @@ class KafkaItemExporter:
     def __init__(self, output, item_type_to_topic_mapping, debezium_json=False):
         self.item_type_to_topic_mapping = item_type_to_topic_mapping
         self.connection_url = self.get_connection_url(output)
-        print(self.connection_url)
-        self.producer = KafkaProducer(
-                bootstrap_servers=self.connection_url,
-                retries=sys.maxsize,
-                max_in_flight_requests_per_connection=10,
-                linger_ms=1000,
-                batch_size=16384 * 64
-        )
+        kafka_options = self.get_kafka_option_from_env()
+
+        options = {
+            'bootstrap_servers': self.connection_url,
+            'retries': sys.maxsize,
+            'max_in_flight_requests_per_connection': 1,
+            'linger_ms': 1000,
+            'batch_size': 16384 * 32,
+            **kafka_options
+        }
+        print('kafka options', options)
+        self.producer = KafkaProducer(**options)
         self.debezium_json = debezium_json
+
+    def get_kafka_option_from_env(self):
+        try:
+            env_option = os.getenv('KafkaOptions')
+            return json.loads(env_option)
+        except Exception as e:
+            return {}
 
     def get_connection_url(self, output):
         try:
-            return output.split('/')[1]
+            output_url = output.split('/')[1]
+            return output_url.split(';')
         except KeyError:
             raise Exception(
                 'Invalid kafka output param, It should be in format of "kafka/127.0.0.1:9092"')
@@ -92,17 +105,6 @@ class KafkaItemExporter:
 
     def success(self, status):
         logger.info(f"Send message to kafka successfully {status}.")
-
-    def export_item(self, item):
-        item_type = item.get('type')
-        if item_type is not None and item_type in self.item_type_to_topic_mapping:
-            data = json.dumps(item).encode('utf-8')
-            logger.debug(data)
-            return self.producer.send(
-                self.item_type_to_topic_mapping[item_type],
-                value=data).add_errback(self.fail)
-        else:
-            logger.warning('Topic for item type "{}" is not configured.'.format(item_type))
 
     def close(self):
         pass
