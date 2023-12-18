@@ -22,7 +22,7 @@ class KafkaItemExporter:
         self.producer = KafkaProducer(
                 bootstrap_servers=self.connection_url,
                 retries=sys.maxsize,
-                max_in_flight_requests_per_connection=1,
+                max_in_flight_requests_per_connection=10,
                 linger_ms=1000,
                 batch_size=16384 * 64
         )
