@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from datetime import datetime
 
 from ethereumetl.enumeration.entity_type import EntityType
 from ethereumetl.service.cache_service import CacheService
@@ -25,6 +26,7 @@ class RedisItemExporter:
         # ignore op is delete
         insert_items = [item for item in items if item.get('op') == OP_STATUS.INSERT]
 
+        start_time = datetime.now()
         for item_type, item_arr in group_by_key(insert_items).items():
             if item_type == EntityType.BLOCK:
                 for block_item in item_arr:
@@ -32,6 +34,7 @@ class RedisItemExporter:
             else:
                 for block_number, value in group_by_key(item_arr, 'block_number').items():
                     self.cache_service.write_cache(item_type, block_number, value)
+        logger.info(f"Write to cached: {datetime.now() - start_time}")
 
     def close(self):
         pass
