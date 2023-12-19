@@ -1,4 +1,5 @@
 import json
+import logging
 from urllib.parse import urlparse, parse_qs
 
 from rediscluster import RedisCluster
@@ -38,16 +39,20 @@ class CacheService:
 
     def clear_block_range(self, _prefix, min_block):
         keys = self.redis_client.scan_iter(f"{_prefix}:*")
+        pipe = self.redis_client.pipeline()
+        count = 0
         for item in keys:
             key = item.decode('ascii')
             delete_block_number = key.split(':')[-1]
             try:
-                self.redis_client.keys(_prefix + ':*')
                 if int(delete_block_number, 10) < min_block:
-                    self.redis_client.delete(key)
+                    pipe.delete(key)
+                    count += 1
             except Exception as e:
                 # ignore redis key
                 pass
+        logging.info(f"Delete cached key {_prefix} {count}")
+        pipe.execute()
 
     def read_cache(self, message_type, block_number) -> list:
         def get_index(item: dict):
