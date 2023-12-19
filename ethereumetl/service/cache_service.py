@@ -1,16 +1,8 @@
 import json
 from urllib.parse import urlparse, parse_qs
 
-from redis.cluster import Redis
-from redis.cluster import RedisCluster
+from rediscluster import RedisCluster
 from ethereumetl.enumeration.entity_type import EntityType
-
-
-def get_general_redis_client(**kwargs):
-    try:
-        return RedisCluster(**kwargs)
-    except Exception as e:
-        return Redis(**kwargs)
 
 
 class CacheService:
@@ -21,10 +13,12 @@ class CacheService:
     def __init__(self, chain: str, output: str):
         self.chain = chain
         connection_opt = parse_schema(output)
-        self.redis_client = get_general_redis_client(
+        print('redis options: ', connection_opt)
+        self.redis_client = RedisCluster(
             host=connection_opt.get('host'),
             port=connection_opt.get('port')
         )
+        print('self.redis_client', self.redis_client)
         self.cache_block_count = int(connection_opt.get('cachedBlockCount')) if 'cachedBlockCount' in connection_opt else 250
 
     def write_cache(self, message_type, block_number, data):
@@ -43,11 +37,12 @@ class CacheService:
             self.clear_block_range(cache_key_prefix, block_number - self.cache_block_count)
 
     def clear_block_range(self, _prefix, min_block):
-        keys = self.redis_client.keys(_prefix + ':*')
+        keys = self.redis_client.scan_iter(f"{_prefix}:*")
         for item in keys:
             key = item.decode('ascii')
             delete_block_number = key.split(':')[-1]
             try:
+                self.redis_client.keys(_prefix + ':*')
                 if int(delete_block_number, 10) < min_block:
                     self.redis_client.delete(key)
             except Exception as e:
