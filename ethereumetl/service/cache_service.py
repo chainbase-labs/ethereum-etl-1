@@ -16,8 +16,12 @@ class CacheService:
         connection_opt = parse_schema(output)
         print('redis options: ', connection_opt)
         self.redis_client = RedisCluster(
-            host=connection_opt.get('host'),
-            port=connection_opt.get('port')
+            startup_nodes=[
+                {
+                    'host': connection_opt.get('host'),
+                    'port': connection_opt.get('port')
+                }
+            ]
         )
         print('self.redis_client', self.redis_client)
         self.cache_block_count = int(connection_opt.get('cachedBlockCount')) if 'cachedBlockCount' in connection_opt else 250
