@@ -21,7 +21,8 @@ class CacheService:
                     'host': connection_opt.get('host'),
                     'port': connection_opt.get('port')
                 }
-            ]
+            ],
+            skip_full_coverage_check=True
         )
         print('self.redis_client', self.redis_client)
         self.cache_block_count = int(connection_opt.get('cachedBlockCount')) if 'cachedBlockCount' in connection_opt else 250
