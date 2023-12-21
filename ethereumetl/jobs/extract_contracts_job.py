@@ -74,6 +74,9 @@ class ExtractContractsJob(BaseJob):
             contract.function_sighashes = function_sighashes
             contract.is_erc20 = self.contract_service.is_erc20_contract(function_sighashes)
             contract.is_erc721 = self.contract_service.is_erc721_contract(function_sighashes)
+            contract.from_address = trace.get('from_address')
+            contract.transaction_hash = trace.get('transaction_hash')
+            contract.transaction_index = trace.get('transaction_index')
 
             contracts.append(contract)
 

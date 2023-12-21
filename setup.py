@@ -46,7 +46,7 @@ setup(
             'timeout-decorator==0.4.1',
             'google-cloud-pubsub==2.13.0',
             'google-cloud-storage==1.33.0',
-            'kafka-python==2.0.2',
+            'confluent-kafka==2.3.0',
             'sqlalchemy==2.0.15',
             'pg8000==1.16.6',
             'pymysql==1.0.3',
@@ -55,7 +55,7 @@ setup(
             'libcst==0.3.21',
             # Later versions break the build in Travis CI for Python 3.7.2
             'grpcio==1.46.3',
-            'redis==5.0.0'
+            'redis-py-cluster==2.1.3'
         ],
         'streaming-kinesis': [
             'boto3==1.24.11',

@@ -158,13 +158,12 @@ def stream(
     streamer_adapter = EthStreamerAdapter(
         batch_web3_provider=ThreadLocalProxy(lambda: get_provider_from_uri(provider_uri, batch=True)),
         node_client=node_client,
-        item_exporter=create_item_exporters(output, chain),
+        item_exporter=create_item_exporters(output, chain, debezium_json=debezium_json),
         batch_size=batch_size,
         max_workers=max_workers,
         entity_types=entity_types,
         chain=chain,
-        reorg_service=reorg_service,
-        debezium_json=debezium_json,
+        reorg_service=reorg_service
     )
     streamer = Streamer(
         blockchain_streamer_adapter=streamer_adapter,

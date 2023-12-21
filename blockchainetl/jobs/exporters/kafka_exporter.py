@@ -1,27 +1,43 @@
-import collections
+from datetime import datetime
 import json
 import logging
-import sys
+import os
+import time
 from collections import defaultdict
 
-from kafka import KafkaProducer
+from confluent_kafka import Producer
+from ethereumetl.streaming.eth_streamer_adapter import OP_STATUS
 
 logger = logging.getLogger(__name__)
 
 
 class KafkaItemExporter:
+    debezium_json: bool = False
 
-    def __init__(self, output, item_type_to_topic_mapping):
+    def __init__(self, output, item_type_to_topic_mapping, debezium_json=False):
         self.item_type_to_topic_mapping = item_type_to_topic_mapping
         self.connection_url = self.get_connection_url(output)
-        print(self.connection_url)
-        self.producer = KafkaProducer(
-                bootstrap_servers=self.connection_url,
-                retries=sys.maxsize,
-                max_in_flight_requests_per_connection=1,
-                linger_ms=1000,
-                batch_size=16384 * 32
-        )
+        kafka_options = self.get_kafka_option_from_env()
+
+        options = {
+            'bootstrap.servers': self.connection_url,
+            'max.in.flight.requests.per.connection': 1,
+            'enable.idempotence': True,
+            'linger.ms': 1000,
+            'queue.buffering.max.messages': 2147483647,
+            'queue.buffering.max.kbytes': 2147483647,
+            **kafka_options
+        }
+        print('kafka options', options)
+        self.producer = Producer(**options)
+        self.debezium_json = debezium_json
+
+    def get_kafka_option_from_env(self):
+        try:
+            env_option = os.getenv('KafkaOptions')
+            return json.loads(env_option)
+        except Exception as e:
+            return {}
 
     def get_connection_url(self, output):
         try:
@@ -32,6 +48,24 @@ class KafkaItemExporter:
 
     def open(self):
         pass
+
+    def _convert_to_debezium_json(self, converted_item):
+        if converted_item["op"] == OP_STATUS.INSERT:
+            return {
+                "before": None,
+                "after": converted_item,
+                "op": OP_STATUS.INSERT,
+                "ts_ms": int(time.time() * 1000),
+                "type": converted_item["type"],
+            }
+        else:
+            return {
+                "before": converted_item,
+                "after": None,
+                "op": OP_STATUS.DELETE,
+                "ts_ms": int(time.time() * 1000),
+                "type": converted_item["type"],
+            }
 
     def export_items(self, items):
         group = defaultdict(list)
@@ -44,33 +78,26 @@ class KafkaItemExporter:
             else:
                 arr.append(item)
 
+        start_time = datetime.now()
         logger.info("Start sending")
+        send_bytes_count = 0
         for key, value in group.items():
             if key not in self.item_type_to_topic_mapping:
                 # ignore topic name is None
                 continue
 
             topic_name = self.item_type_to_topic_mapping[key]
-            """
-            if(check has reorg block):
-                write_reorg_message();
-            """
-            if group.get('reorg') is not None:
-                if len(group.get('reorg')) != 1:
-                    raise RuntimeError(
-                        f"reorg occurs at multiple block heights {group.get('reorg')}")
-                reorg_message = group.get('reorg')[0]
-                logger.info(f'Writes a reorg message {reorg_message}')
-                self.send_message(topic_name, reorg_message)
-
             for item in value:
-                self.send_message(topic_name, item)
+                send_bytes_count += self.send_message(topic_name, item)
         self.producer.flush(timeout=30)
-        logger.info("End of sending")
+        logger.info(f"End of sending {datetime.now() - start_time}, {send_bytes_count} Bytes")
 
     def send_message(self, topic_name, message):
-      message_byte = json.dumps(message).encode('utf-8')
-      self.producer.send(topic_name, value=message_byte).add_errback(self.fail)
+        if self.debezium_json:
+            message = self._convert_to_debezium_json(message)
+        message_byte = json.dumps(message).encode('utf-8')
+        self.producer.produce(topic_name, value=message_byte)
+        return len(message_byte)
 
     def fail(self, error):
         logger.exception(f"Send message to kafka failed: {error}.",
@@ -79,17 +106,5 @@ class KafkaItemExporter:
     def success(self, status):
         logger.info(f"Send message to kafka successfully {status}.")
 
-    def export_item(self, item):
-        item_type = item.get('type')
-        if item_type is not None and item_type in self.item_type_to_topic_mapping:
-            data = json.dumps(item).encode('utf-8')
-            logger.debug(data)
-            return self.producer.send(
-                self.item_type_to_topic_mapping[item_type],
-                value=data).add_errback(self.fail)
-        else:
-            logger.warning('Topic for item type "{}" is not configured.'.format(item_type))
-
     def close(self):
         pass
-

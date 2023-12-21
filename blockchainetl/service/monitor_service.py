@@ -6,12 +6,13 @@ import requests
 class MonitorService:
     blockchain: str
     endpoint: str
-    last_alert_block: int
+    last_alert_block: int = 0
 
     def __init__(self, endpoint: str, blockchain: str):
         self.endpoint = endpoint
         self.blockchain = blockchain
         self.logger = logging.getLogger('MonitorService')
+        self.last_alert_block = 0
 
     def send_error(self, block_number, error):
         try:

@@ -24,14 +24,14 @@ from blockchainetl.jobs.exporters.console_item_exporter import ConsoleItemExport
 from blockchainetl.jobs.exporters.multi_item_exporter import MultiItemExporter
 
 
-def create_item_exporters(outputs, chain):
+def create_item_exporters(outputs, chain, **kwargs):
     split_outputs = [output.strip() for output in outputs.split(',')] if outputs else ['console']
 
-    item_exporters = [create_item_exporter(output, chain) for output in split_outputs]
+    item_exporters = [create_item_exporter(output, chain, **kwargs) for output in split_outputs]
     return MultiItemExporter(item_exporters)
 
 
-def create_item_exporter(output, chain):
+def create_item_exporter(output, chain, **kwargs):
     item_exporter_type = determine_item_exporter_type(output)
     if item_exporter_type == ItemExporterType.PUBSUB:
         from blockchainetl.jobs.exporters.google_pubsub_item_exporter import GooglePubSubItemExporter
@@ -116,7 +116,7 @@ def create_item_exporter(output, chain):
             'geth_trace': '{}_traces'.format(chain),
             'contract': '{}_contracts'.format(chain),
             'token': '{}_tokens'.format(chain),
-        })
+        }, **kwargs)
     elif item_exporter_type == ItemExporterType.REDIS:
         from blockchainetl.jobs.exporters.redis_exporter import RedisItemExporter
         item_exporter = RedisItemExporter(output, chain=chain)
