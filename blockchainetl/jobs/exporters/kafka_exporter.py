@@ -22,8 +22,8 @@ class KafkaItemExporter:
             'max.in.flight.requests.per.connection': 1,
             'enable.idempotence': True,
             'linger.ms': 1000,
-            'queue.buffering.max.messages': 2147483648,
-            'queue.buffering.max.kbytes': 2147483648,
+            'queue.buffering.max.messages': 2147483647,
+            'queue.buffering.max.kbytes': 2147483647,
             **kafka_options
         }
         print('kafka options', options)
