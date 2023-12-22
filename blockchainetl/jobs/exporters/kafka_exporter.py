@@ -1,10 +1,11 @@
 import collections
 import json
 import logging
-import sys
+import os
 from collections import defaultdict
+from datetime import datetime
 
-from kafka import KafkaProducer
+from confluent_kafka import Producer
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +15,19 @@ class KafkaItemExporter:
     def __init__(self, output, item_type_to_topic_mapping):
         self.item_type_to_topic_mapping = item_type_to_topic_mapping
         self.connection_url = self.get_connection_url(output)
-        print(self.connection_url)
-        self.producer = KafkaProducer(
-                bootstrap_servers=self.connection_url,
-                retries=sys.maxsize,
-                max_in_flight_requests_per_connection=1,
-                linger_ms=20,
-                batch_size=16384 * 32
-        )
+        kafka_options = self.get_kafka_option_from_env()
+
+        options = {
+            'bootstrap.servers': self.connection_url,
+            'max.in.flight.requests.per.connection': 1,
+            'enable.idempotence': True,
+            'linger.ms': 1000,
+            'queue.buffering.max.messages': 2147483648,
+            'queue.buffering.max.kbytes': 2147483648,
+            **kafka_options
+        }
+        print('kafka options', options)
+        self.producer = Producer(**options)
 
     def get_connection_url(self, output):
         try:
@@ -29,6 +35,13 @@ class KafkaItemExporter:
         except KeyError:
             raise Exception(
                 'Invalid kafka output param, It should be in format of "kafka/127.0.0.1:9092"')
+
+    def get_kafka_option_from_env(self):
+        try:
+            env_option = os.getenv('KafkaOptions')
+            return json.loads(env_option)
+        except Exception as e:
+            return {}
 
     def open(self):
         pass
@@ -44,6 +57,7 @@ class KafkaItemExporter:
             else:
                 arr.append(item)
 
+        start_time = datetime.now()
         logger.info("Start sending")
         for key, value in group.items():
             if key not in self.item_type_to_topic_mapping:
@@ -66,27 +80,17 @@ class KafkaItemExporter:
             for item in value:
                 self.send_message(topic_name, item)
         self.producer.flush(timeout=30)
-        logger.info("End of sending")
+        logger.info(f"End of sending {datetime.now() - start_time}")
 
     def send_message(self, topic_name, message):
-      message_byte = json.dumps(message).encode('utf-8')
-      self.producer.send(topic_name, value=message_byte).add_errback(self.fail)
-
-    def fail(self, error):
-        logger.exception(f"Send message to kafka failed: {error}.",
-                         exc_info=error)
-
-    def success(self, status):
-        logger.info(f"Send message to kafka successfully {status}.")
+        message_byte = json.dumps(message).encode('utf-8')
+        self.producer.produce(topic_name, value=message_byte)
 
     def export_item(self, item):
         item_type = item.get('type')
         if item_type is not None and item_type in self.item_type_to_topic_mapping:
             data = json.dumps(item).encode('utf-8')
-            logger.debug(data)
-            return self.producer.send(
-                self.item_type_to_topic_mapping[item_type],
-                value=data).add_errback(self.fail)
+            return self.producer.produce(self.item_type_to_topic_mapping[item_type], value=data)
         else:
             logger.warning('Topic for item type "{}" is not configured.'.format(item_type))
 
