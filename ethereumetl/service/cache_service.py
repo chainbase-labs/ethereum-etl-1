@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 
 from rediscluster import RedisCluster
@@ -37,10 +38,14 @@ class CacheService:
             })
             self.redis_client.zremrangebyscore(cache_key_prefix, min=0, max=block_number - self.cache_block_count)
         else:
+            start_time = datetime.now()
             block_type_key = f"{cache_key_prefix}:{block_number}"
             self.redis_client.delete(block_type_key)
+            logging.info(f"Delete Repeat Block: {datetime.now() - start_time}")
             self.redis_client.rpush(block_type_key, *[self.serialize(item) for item in data])
+            logging.info(f"Write Cache: {datetime.now() - start_time}")
             self.clear_block_range(cache_key_prefix, block_number - self.cache_block_count)
+            logging.info(f"Delete Exceeded block data: {datetime.now() - start_time}")
 
     def clear_block_range(self, _prefix, min_block):
         keys = self.redis_client.scan_iter(f"{_prefix}:*")
