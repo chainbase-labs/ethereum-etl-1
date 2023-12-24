@@ -48,18 +48,18 @@ class CacheService:
             logging.info(f"Delete Exceeded block data: {datetime.now() - start_time}")
 
     def clear_block_range(self, _prefix, min_block):
-        keys = self.redis_client.scan_iter(f"{_prefix}:*")
-        pipe = self.redis_client.pipeline()
+        keys = self.redis_client.scan_iter(f"{_prefix}:*", count=100)
+        delete_keys = []
         for item in keys:
             key = item.decode('ascii')
             delete_block_number = key.split(':')[-1]
             try:
                 if int(delete_block_number, 10) < min_block:
-                    pipe.delete(key)
+                    delete_keys.append(key)
             except Exception as e:
                 # ignore redis key
                 pass
-        pipe.execute()
+        self.redis_client.delete(*delete_keys)
 
     def read_cache(self, message_type, block_number) -> list:
         def get_index(item: dict):
