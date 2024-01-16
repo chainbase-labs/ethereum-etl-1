@@ -20,152 +20,186 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
-from blockchainetl.jobs.exporters.console_item_exporter import ConsoleItemExporter
+from blockchainetl.jobs.exporters.console_item_exporter import \
+  ConsoleItemExporter
 from blockchainetl.jobs.exporters.multi_item_exporter import MultiItemExporter
 
 
 def create_item_exporters(outputs, chain, **kwargs):
-    split_outputs = [output.strip() for output in outputs.split(',')] if outputs else ['console']
+  split_outputs = [output.strip() for output in
+                   outputs.split(',')] if outputs else ['console']
 
-    item_exporters = [create_item_exporter(output, chain, **kwargs) for output in split_outputs]
-    return MultiItemExporter(item_exporters)
+  item_exporters = [create_item_exporter(output, chain, **kwargs) for output in
+                    split_outputs]
+  return MultiItemExporter(item_exporters)
 
 
 def create_item_exporter(output, chain, **kwargs):
-    item_exporter_type = determine_item_exporter_type(output)
-    if item_exporter_type == ItemExporterType.PUBSUB:
-        from blockchainetl.jobs.exporters.google_pubsub_item_exporter import GooglePubSubItemExporter
-        enable_message_ordering = 'sorted' in output or 'ordered' in output
-        item_exporter = GooglePubSubItemExporter(
-            item_type_to_topic_mapping={
-                'block': output + '.blocks',
-                'transaction': output + '.transactions',
-                'log': output + '.logs',
-                'token_transfer': output + '.token_transfers',
-                'trace': output + '.traces',
-                'contract': output + '.contracts',
-                'token': output + '.tokens',
-            },
-            message_attributes=('item_id', 'item_timestamp'),
-            batch_max_bytes=1024 * 1024 * 5,
-            batch_max_latency=2,
-            batch_max_messages=1000,
-            enable_message_ordering=enable_message_ordering)
-    elif item_exporter_type == ItemExporterType.KINESIS:
-        from blockchainetl.jobs.exporters.kinesis_item_exporter import KinesisItemExporter
-        item_exporter = KinesisItemExporter(
-            stream_name=output[len('kinesis://'):],
-        )
-    elif item_exporter_type == ItemExporterType.POSTGRES:
-        from blockchainetl.jobs.exporters.postgres_item_exporter import PostgresItemExporter
-        from blockchainetl.streaming.postgres_utils import create_insert_statement_for_table
-        from blockchainetl.jobs.exporters.converters.unix_timestamp_item_converter import UnixTimestampItemConverter
-        from blockchainetl.jobs.exporters.converters.int_to_decimal_item_converter import IntToDecimalItemConverter
-        from blockchainetl.jobs.exporters.converters.list_field_item_converter import ListFieldItemConverter
-        from ethereumetl.streaming.postgres_tables import BLOCKS, TRANSACTIONS, LOGS, TOKEN_TRANSFERS, TRACES, TOKENS, CONTRACTS
+  item_exporter_type = determine_item_exporter_type(output)
+  if item_exporter_type == ItemExporterType.PUBSUB:
+    from blockchainetl.jobs.exporters.google_pubsub_item_exporter import \
+      GooglePubSubItemExporter
+    enable_message_ordering = 'sorted' in output or 'ordered' in output
+    item_exporter = GooglePubSubItemExporter(
+        item_type_to_topic_mapping={
+          'block': output + '.blocks',
+          'transaction': output + '.transactions',
+          'log': output + '.logs',
+          'token_transfer': output + '.token_transfers',
+          'trace': output + '.traces',
+          'contract': output + '.contracts',
+          'token': output + '.tokens',
+        },
+        message_attributes=('item_id', 'item_timestamp'),
+        batch_max_bytes=1024 * 1024 * 5,
+        batch_max_latency=2,
+        batch_max_messages=1000,
+        enable_message_ordering=enable_message_ordering)
+  elif item_exporter_type == ItemExporterType.KINESIS:
+    from blockchainetl.jobs.exporters.kinesis_item_exporter import \
+      KinesisItemExporter
+    item_exporter = KinesisItemExporter(
+        stream_name=output[len('kinesis://'):],
+    )
+  elif item_exporter_type == ItemExporterType.POSTGRES:
+    from blockchainetl.jobs.exporters.postgres_item_exporter import \
+      PostgresItemExporter
+    from blockchainetl.streaming.postgres_utils import \
+      create_insert_statement_for_table
+    from blockchainetl.jobs.exporters.converters.unix_timestamp_item_converter import \
+      UnixTimestampItemConverter
+    from blockchainetl.jobs.exporters.converters.int_to_decimal_item_converter import \
+      IntToDecimalItemConverter
+    from blockchainetl.jobs.exporters.converters.list_field_item_converter import \
+      ListFieldItemConverter
+    from ethereumetl.streaming.postgres_tables import BLOCKS, TRANSACTIONS, \
+      LOGS, TOKEN_TRANSFERS, TRACES, TOKENS, CONTRACTS
 
-        item_exporter = PostgresItemExporter(
-            output, item_type_to_insert_stmt_mapping={
-                'block': create_insert_statement_for_table(BLOCKS),
-                'transaction': create_insert_statement_for_table(TRANSACTIONS),
-                'log': create_insert_statement_for_table(LOGS),
-                'token_transfer': create_insert_statement_for_table(TOKEN_TRANSFERS),
-                'trace': create_insert_statement_for_table(TRACES),
-                'token': create_insert_statement_for_table(TOKENS),
-                'contract': create_insert_statement_for_table(CONTRACTS),
-            },
-            converters=[UnixTimestampItemConverter(), IntToDecimalItemConverter(),
-                        ListFieldItemConverter('topics', 'topic', fill=4)])
-    elif item_exporter_type == ItemExporterType.MYSQL:
-        from blockchainetl.jobs.exporters.mysql_item_exporter import MySQLItemExporter
-        from blockchainetl.streaming.mysql_utils import create_insert_statement_for_table
-        from blockchainetl.jobs.exporters.converters.unix_timestamp_item_converter import UnixTimestampItemConverter
-        from blockchainetl.jobs.exporters.converters.int_to_decimal_item_converter import IntToDecimalItemConverter
-        from blockchainetl.jobs.exporters.converters.list_to_string_item_converter import ListToStringItemConverter
-        from blockchainetl.jobs.exporters.converters.list_field_item_converter import ListFieldItemConverter
-        from ethereumetl.streaming.mysql_tables import BLOCKS, TRANSACTIONS, LOGS, TOKEN_TRANSFERS, TRACES, TOKENS, CONTRACTS
+    item_exporter = PostgresItemExporter(
+        output, item_type_to_insert_stmt_mapping={
+          'block': create_insert_statement_for_table(BLOCKS),
+          'transaction': create_insert_statement_for_table(TRANSACTIONS),
+          'log': create_insert_statement_for_table(LOGS),
+          'token_transfer': create_insert_statement_for_table(TOKEN_TRANSFERS),
+          'trace': create_insert_statement_for_table(TRACES),
+          'token': create_insert_statement_for_table(TOKENS),
+          'contract': create_insert_statement_for_table(CONTRACTS),
+        },
+        converters=[UnixTimestampItemConverter(), IntToDecimalItemConverter(),
+                    ListFieldItemConverter('topics', 'topic', fill=4)])
+  elif item_exporter_type == ItemExporterType.MYSQL:
+    from blockchainetl.jobs.exporters.mysql_item_exporter import \
+      MySQLItemExporter
+    from blockchainetl.streaming.mysql_utils import \
+      create_insert_statement_for_table
+    from blockchainetl.jobs.exporters.converters.unix_timestamp_item_converter import \
+      UnixTimestampItemConverter
+    from blockchainetl.jobs.exporters.converters.int_to_decimal_item_converter import \
+      IntToDecimalItemConverter
+    from blockchainetl.jobs.exporters.converters.list_to_string_item_converter import \
+      ListToStringItemConverter
+    from blockchainetl.jobs.exporters.converters.list_field_item_converter import \
+      ListFieldItemConverter
+    from ethereumetl.streaming.mysql_tables import BLOCKS, TRANSACTIONS, LOGS, \
+      TOKEN_TRANSFERS, TRACES, TOKENS, CONTRACTS
 
-        item_exporter = MySQLItemExporter(
-            output, item_type_to_insert_stmt_mapping={
-                'block': create_insert_statement_for_table(BLOCKS),
-                'transaction': create_insert_statement_for_table(TRANSACTIONS),
-                'log': create_insert_statement_for_table(LOGS),
-                'token_transfer': create_insert_statement_for_table(TOKEN_TRANSFERS),
-                'trace': create_insert_statement_for_table(TRACES),
-                'token': create_insert_statement_for_table(TOKENS),
-                'contract': create_insert_statement_for_table(CONTRACTS),
-            },
-            converters=[UnixTimestampItemConverter(), IntToDecimalItemConverter(),
-                        ListToStringItemConverter('function_sighashes'),
-                        ListFieldItemConverter('topics', 'topic', fill=4)])
+    item_exporter = MySQLItemExporter(
+        output, item_type_to_insert_stmt_mapping={
+          'block': create_insert_statement_for_table(BLOCKS),
+          'transaction': create_insert_statement_for_table(TRANSACTIONS),
+          'log': create_insert_statement_for_table(LOGS),
+          'token_transfer': create_insert_statement_for_table(TOKEN_TRANSFERS),
+          'trace': create_insert_statement_for_table(TRACES),
+          'token': create_insert_statement_for_table(TOKENS),
+          'contract': create_insert_statement_for_table(CONTRACTS),
+        },
+        converters=[UnixTimestampItemConverter(), IntToDecimalItemConverter(),
+                    ListToStringItemConverter('function_sighashes'),
+                    ListFieldItemConverter('topics', 'topic', fill=4)])
 
-    elif item_exporter_type == ItemExporterType.GCS:
-        from blockchainetl.jobs.exporters.gcs_item_exporter import GcsItemExporter
-        bucket, path = get_bucket_and_path_from_gcs_output(output)
-        item_exporter = GcsItemExporter(bucket=bucket, path=path)
-    elif item_exporter_type == ItemExporterType.CONSOLE:
-        item_exporter = ConsoleItemExporter()
-    elif item_exporter_type == ItemExporterType.KAFKA:
-        from blockchainetl.jobs.exporters.kafka_exporter import KafkaItemExporter
-        item_exporter = KafkaItemExporter(output, item_type_to_topic_mapping={
-            'block': '{}_blocks'.format(chain),
-            'transaction': '{}_transactions'.format(chain),
-            'log': '{}_logs'.format(chain),
-            'token_transfer': '{}_token_transfers'.format(chain),
-            'trace': '{}_traces'.format(chain),
-            'geth_trace': '{}_traces'.format(chain),
-            'contract': '{}_contracts'.format(chain),
-            'token': '{}_tokens'.format(chain),
-        }, **kwargs)
-    elif item_exporter_type == ItemExporterType.REDIS:
-        from blockchainetl.jobs.exporters.redis_exporter import RedisItemExporter
-        item_exporter = RedisItemExporter(output, chain=chain)
+  elif item_exporter_type == ItemExporterType.GCS:
+    from blockchainetl.jobs.exporters.gcs_item_exporter import GcsItemExporter
+    bucket, path = get_bucket_and_path_from_gcs_output(output)
+    item_exporter = GcsItemExporter(bucket=bucket, path=path)
+  elif item_exporter_type == ItemExporterType.CONSOLE:
+    item_exporter = ConsoleItemExporter()
+  elif item_exporter_type == ItemExporterType.KAFKA:
+    from blockchainetl.jobs.exporters.kafka_exporter import KafkaItemExporter
+    item_exporter = KafkaItemExporter(output, item_type_to_topic_mapping={
+      'block': '{}_blocks'.format(chain),
+      'transaction': '{}_transactions'.format(chain),
+      'log': '{}_logs'.format(chain),
+      'token_transfer': '{}_token_transfers'.format(chain),
+      'trace': '{}_traces'.format(chain),
+      'geth_trace': '{}_traces'.format(chain),
+      'contract': '{}_contracts'.format(chain),
+      'token': '{}_tokens'.format(chain),
+    }, **kwargs)
+  elif item_exporter_type == ItemExporterType.REDIS:
+    from blockchainetl.jobs.exporters.redis_exporter import RedisItemExporter
+    item_exporter = RedisItemExporter(output, chain=chain)
+  elif item_exporter_type == ItemExporterType.INDEXER:
+    from blockchainetl.jobs.exporters.converters.int_to_decimal_item_converter import \
+      IntToDecimalItemConverter
+    from blockchainetl.jobs.exporters.converters.list_field_item_converter import \
+      ListFieldItemConverter
+    from blockchainetl.jobs.exporters.indexer_item_exporter import \
+      IndexerItemExporter
 
-    else:
-        raise ValueError('Unable to determine item exporter type for output ' + output)
+    item_exporter = IndexerItemExporter(output, item_type_to_file_mapping={
+      'transaction': 'transactions.txt',
+      'log': 'logs.txt',
+    }, converters=[IntToDecimalItemConverter(),
+                   ListFieldItemConverter('topics', 'topic', fill=4)])
+  else:
+    raise ValueError(
+        'Unable to determine item exporter type for output ' + output)
 
-    return item_exporter
+  return item_exporter
 
 
 def get_bucket_and_path_from_gcs_output(output):
-    output = output.replace('gs://', '')
-    bucket_and_path = output.split('/', 1)
-    bucket = bucket_and_path[0]
-    if len(bucket_and_path) > 1:
-        path = bucket_and_path[1]
-    else:
-        path = ''
-    return bucket, path
+  output = output.replace('gs://', '')
+  bucket_and_path = output.split('/', 1)
+  bucket = bucket_and_path[0]
+  if len(bucket_and_path) > 1:
+    path = bucket_and_path[1]
+  else:
+    path = ''
+  return bucket, path
 
 
 def determine_item_exporter_type(output):
-    if output is not None and output.startswith('projects'):
-        return ItemExporterType.PUBSUB
-    if output is not None and output.startswith('kinesis://'):
-        return ItemExporterType.KINESIS
-    if output is not None and output.startswith('kafka'):
-        return ItemExporterType.KAFKA
-    if output is not None and output.startswith('redis://'):
-        return ItemExporterType.REDIS
-    elif output is not None and output.startswith('postgresql'):
-        return ItemExporterType.POSTGRES
-    elif output is not None and output.startswith('mysql'):
-        return ItemExporterType.MYSQL
-    elif output is not None and output.startswith('gs://'):
-        return ItemExporterType.GCS
-    elif output is None or output == 'console':
-        return ItemExporterType.CONSOLE
-    else:
-        return ItemExporterType.UNKNOWN
+  if output is not None and output.startswith('projects'):
+    return ItemExporterType.PUBSUB
+  if output is not None and output.startswith('kinesis://'):
+    return ItemExporterType.KINESIS
+  if output is not None and output.startswith('kafka'):
+    return ItemExporterType.KAFKA
+  if output is not None and output.startswith('redis://'):
+    return ItemExporterType.REDIS
+  elif output is not None and output.startswith('postgresql'):
+    return ItemExporterType.POSTGRES
+  elif output is not None and output.startswith('mysql'):
+    return ItemExporterType.MYSQL
+  elif output is not None and output.startswith('gs://'):
+    return ItemExporterType.GCS
+  elif output is None or output == 'console':
+    return ItemExporterType.CONSOLE
+  elif output is None or output == 'indexer':
+    return ItemExporterType.INDEXER
+  else:
+    return ItemExporterType.UNKNOWN
 
 
 class ItemExporterType:
-    PUBSUB = 'pubsub'
-    KINESIS = 'kinesis'
-    POSTGRES = 'postgres'
-    MYSQL = 'mysql'
-    GCS = 'gcs'
-    CONSOLE = 'console'
-    KAFKA = 'kafka'
-    REDIS = 'redis'
-    UNKNOWN = 'unknown'
+  PUBSUB = 'pubsub'
+  KINESIS = 'kinesis'
+  POSTGRES = 'postgres'
+  MYSQL = 'mysql'
+  GCS = 'gcs'
+  CONSOLE = 'console'
+  KAFKA = 'kafka'
+  REDIS = 'redis'
+  INDEXER = 'indexer'
+  UNKNOWN = 'unknown'
