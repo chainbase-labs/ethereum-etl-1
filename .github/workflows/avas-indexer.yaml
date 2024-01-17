@@ -36,10 +36,12 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ethereum-etl
           IMAGE_TAG: ${{ steps.get_version.outputs.VERSION }}
+          AVAS_GO_REPOSITORY: avas_open_indexer
+          AVAS_GO_IMAGE_TAG: avas_2401117
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-          --build-arg AVAS_GO_REPOSITORY=avas_open_indexer \
+          --build-arg AVAS_GO_REPOSITORY=$AVAS_GO_REPOSITORY \
           --build-arg ECR_REGISTRY=$ECR_REGISTRY \
-          --build-arg IMAGE_TAG=$IMAGE_TAG \
+          --build-arg IMAGE_TAG=$AVAS_GO_IMAGE_TAG \
           -f ./avas_Dockerfile .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
