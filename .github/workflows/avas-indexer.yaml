@@ -1,4 +1,4 @@
-name: release-image-ECR
+name: avas-indexer-ECR
 
 on:
   push:
