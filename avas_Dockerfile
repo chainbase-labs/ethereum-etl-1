@@ -8,12 +8,6 @@ WORKDIR /$PROJECT_DIR
 COPY . .
 RUN pip install --upgrade pip && pip install -e /$PROJECT_DIR/[streaming]
 
-ARG ecr_registry
-ARG image_tag
-
-RUN echo "ECR_REGISTRY: $ECR_REGISTRY"
-RUN echo "IMAGE_TAG: $IMAGE_TAG"
-
 # Add Tini
 ENV TINI_VERSION v0.18.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
