@@ -13,7 +13,6 @@ ARG image_tag
 
 RUN echo "ECR_REGISTRY: $ECR_REGISTRY"
 RUN echo "IMAGE_TAG: $IMAGE_TAG"
-COPY --from=$ecr_registry/avas-open-indexer:$image_tag /avas-open-indexer/indexer /$PROJECT_DIR/indexer
 
 # Add Tini
 ENV TINI_VERSION v0.18.0
