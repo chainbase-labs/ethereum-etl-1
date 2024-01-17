@@ -12,7 +12,7 @@ ARG AVAS_GO_REPOSITORY
 ARG ECR_REGISTRY
 ARG IMAGE_TAG
 
-COPY --from=$ECR_REGISTRY/$AVAS_GO_REPOSITORY:$IMAGE_TAG /avas-open-indexer/indexer /$PROJECT_DIR/indexer
+COPY --from=${ECR_REGISTRY}/${AVAS_GO_REPOSITORY}:${IMAGE_TAG} /avas-open-indexer/indexer /${PROJECT_DIR}/indexer
 
 # Add Tini
 ENV TINI_VERSION v0.18.0
