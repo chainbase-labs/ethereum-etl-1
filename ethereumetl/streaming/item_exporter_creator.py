@@ -145,11 +145,18 @@ def create_item_exporter(output, chain, **kwargs):
       ListFieldItemConverter
     from blockchainetl.jobs.exporters.indexer_item_exporter import \
       IndexerItemExporter
+    from blockchainetl.jobs.exporters.converters.str_unix_timestamp_to_int_item_converter import \
+      StrUnixTimestampToIntItemConverter
+    from ethereumetl.streaming.mysql_tables import TRANSACTIONS, LOGS
 
-    item_exporter = IndexerItemExporter(output, item_type_to_file_mapping={
+    item_exporter = IndexerItemExporter(item_type_to_file_mapping={
       'transaction': 'transactions.txt',
       'log': 'logs.txt',
-    }, converters=[IntToDecimalItemConverter(),
+    }, item_type_to_table_mapping={
+      'transaction': TRANSACTIONS,
+      'log': LOGS,
+    }, converters=[StrUnixTimestampToIntItemConverter(),
+                   IntToDecimalItemConverter(),
                    ListFieldItemConverter('topics', 'topic', fill=4)])
   else:
     raise ValueError(

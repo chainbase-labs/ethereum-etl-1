@@ -12,10 +12,11 @@ class IndexerItemExporter:
   logger = logging.getLogger('IndexerItemExporter')
 
   def __init__(
-      self, item_type_to_file_mapping, converters=()
+      self, item_type_to_file_mapping, item_type_to_table_mapping, converters=()
   ):
     self.converter = CompositeItemConverter(converters)
     self.item_type_to_file_mapping = item_type_to_file_mapping
+    self.item_type_to_table_mapping = item_type_to_table_mapping
     self.files = {}
 
   def open(self):
@@ -28,13 +29,14 @@ class IndexerItemExporter:
     for item_type, file_name in self.item_type_to_file_mapping.items():
       items = items_grouped_by_type.get(item_type)
       if items:
-        file_name = f'{item_type}.csv'
+        # file_name = f'{item_type}.csv'
         if item_type not in self.files:
           self.files[item_type] = open(file_name, 'a', newline='',
                                        encoding='UTF-8')
 
+        table = self.item_type_to_table_mapping[item_type]
         csv_writer = csv.writer(self.files[item_type])
-        converted_items = list(self.convert_items(items))
+        converted_items = list(self.convert_items(items, table))
         csv_writer.writerows(converted_items)
 
     duration = datetime.now() - start_time
@@ -44,9 +46,12 @@ class IndexerItemExporter:
     )
     # self.call_go()
 
-  def convert_items(self, items):
+  def convert_items(self, items, table):
     for item in items:
-      yield self.converter.convert_item(item)
+      converted_item = self.converter.convert_item(item)
+      columns = [column.name for column in table.columns]
+      # converted_item.pop('type', None)
+      yield [converted_item.get(column) for column in columns]
 
   def close(self):
     for file in self.files.values():

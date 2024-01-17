@@ -5,7 +5,7 @@ on:
     branches:
       - chainbase
     tags:
-      - "*"
+      - "avas_*"
 
 
 jobs:
