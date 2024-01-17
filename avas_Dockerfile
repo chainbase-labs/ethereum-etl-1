@@ -8,18 +8,14 @@ WORKDIR /$PROJECT_DIR
 COPY . .
 RUN pip install --upgrade pip && pip install -e /$PROJECT_DIR/[streaming]
 
-ARG AVAS_GO_REPOSITORY
+ARG avas_go_repository
 ARG ECR_REGISTRY
 ARG IMAGE_TAG
-
-ENV ECR_REGISTRY=$ECR_REGISTRY
-ENV AVAS_GO_REPOSITORY=$AVAS_GO_REPOSITORY
-ENV IMAGE_TAG=$IMAGE_TAG
 
 RUN echo "ECR_REGISTRY: $ECR_REGISTRY"
 RUN echo "AVAS_GO_REPOSITORY: $AVAS_GO_REPOSITORY"
 RUN echo "IMAGE_TAG: $IMAGE_TAG"
-COPY --from=$ECR_REGISTRY/$AVAS_GO_REPOSITORY:$IMAGE_TAG /avas-open-indexer/indexer /$PROJECT_DIR/indexer
+COPY --from=$ECR_REGISTRY/$avas_go_repository:$IMAGE_TAG /avas-open-indexer/indexer /$PROJECT_DIR/indexer
 
 # Add Tini
 ENV TINI_VERSION v0.18.0
