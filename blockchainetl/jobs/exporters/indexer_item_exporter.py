@@ -63,7 +63,7 @@ class IndexerItemExporter:
 
     command = [go_program, '--transactions', self.files["transaction"].name,
                '--logs',
-               self.files["log"].name]
+               self.files["log"].name, '--output', 'asc20_output.txt']
 
     try:
       result = subprocess.run(command, check=True, stdout=subprocess.PIPE,
