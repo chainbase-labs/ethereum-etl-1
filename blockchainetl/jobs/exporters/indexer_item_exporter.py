@@ -31,7 +31,7 @@ class IndexerItemExporter:
       if items:
         # file_name = f'{item_type}.csv'
         if item_type not in self.files:
-          self.files[item_type] = open(file_name, 'a', newline='',
+          self.files[item_type] = open(file_name, 'w', newline='',
                                        encoding='UTF-8')
 
         table = self.item_type_to_table_mapping[item_type]
@@ -44,13 +44,13 @@ class IndexerItemExporter:
         f"Finished write. Total items processed: {len(items)}. "
         f"Took {str(duration)}."
     )
-    # self.call_go()
+
+    self.call_go()
 
   def convert_items(self, items, table):
+    columns = [column.name for column in table.columns]
     for item in items:
       converted_item = self.converter.convert_item(item)
-      columns = [column.name for column in table.columns]
-      # converted_item.pop('type', None)
       yield [converted_item.get(column) for column in columns]
 
   def close(self):
@@ -58,24 +58,27 @@ class IndexerItemExporter:
       file.close()
 
   def call_go(self):
-    # 指定编译好的 Go 程序的路径
-    go_program = './indexer'
+    start_time = datetime.now()
+    go_program = '../open-indexer/indexer'
 
-    # 指定文件路径
-    transactions_file = './data/transactions.txt'
-    logs_file = './data/logs.txt'
-
-    # 构建命令
-    command = [go_program, '--transactions', transactions_file, '--logs',
-               logs_file]
+    command = [go_program, '--transactions', self.files["transaction"].name,
+               '--logs',
+               self.files["log"].name]
 
     try:
-      # 调用 Go 程序
       result = subprocess.run(command, check=True, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
-      print("Go program output:", result.stdout.decode())
+      self.logger.info("Go program output:", result.stdout.decode())
     except subprocess.CalledProcessError as e:
-      print("Error calling Go program:", e.stderr.decode())
+      self.logger.error("Error calling Go program:", str(e))
+    except Exception as e:
+      self.logger.error(
+          "Error calling Go program: " + str(e) + ", " + str(e.output))
+    duration = datetime.now() - start_time
+    self.logger.info(
+        f"Finished Go program."
+        f"Took {str(duration)}."
+    )
 
 
 def group_by_item_type(items):
