@@ -2,6 +2,7 @@ import collections
 import csv
 import logging
 import subprocess
+import sys
 from datetime import datetime
 
 from blockchainetl.jobs.exporters.converters.composite_item_converter import \
@@ -59,21 +60,24 @@ class IndexerItemExporter:
 
   def call_go(self):
     start_time = datetime.now()
-    go_program = './indexer'
+    go_program = '../open-indexer/indexer'
 
     command = [go_program, '--transactions', self.files["transaction"].name,
                '--logs',
-               self.files["log"].name, '--output', 'asc20_output.txt']
+               self.files["log"].name]
 
     try:
       result = subprocess.run(command, check=True, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
       self.logger.info("Go program output:", result.stdout.decode())
     except subprocess.CalledProcessError as e:
-      self.logger.error("Error calling Go program:", str(e))
+      self.logger.error("Error calling Go program:",
+                        str(e) + "," + str(e.output))
+      sys.exit(1)
     except Exception as e:
       self.logger.error(
           "Error calling Go program: " + str(e) + ", " + str(e.output))
+      sys.exit(1)
     duration = datetime.now() - start_time
     self.logger.info(
         f"Finished Go program."
