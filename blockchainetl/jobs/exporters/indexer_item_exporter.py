@@ -59,7 +59,7 @@ class IndexerItemExporter:
 
   def call_go(self):
     start_time = datetime.now()
-    go_program = '../open-indexer/indexer'
+    go_program = './indexer'
 
     command = [go_program, '--transactions', self.files["transaction"].name,
                '--logs',
