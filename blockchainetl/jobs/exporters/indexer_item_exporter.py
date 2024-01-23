@@ -75,12 +75,12 @@ class IndexerItemExporter:
       self.logger.info("Go program output: %s", result.stdout.decode())
     except subprocess.CalledProcessError as e:
       self.logger.error("Error calling Go program: %s",
-                        str(e) + ", " + e.output.decode())
+                        str(e) + ", " + str(e.output))
       sys.exit(1)
     except Exception as e:
       self.logger.error(
           "Error calling Go program: %s",
-          str(e) + ", " + e.output.decode())
+          str(e) + ", " + str(e.output))
       sys.exit(1)
     duration = datetime.now() - start_time
     self.logger.info(

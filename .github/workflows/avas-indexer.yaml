@@ -36,7 +36,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ethereum-etl
           IMAGE_TAG: ${{ steps.get_version.outputs.VERSION }}
-          AVAS_GO_IMAGE_TAG: avas_24012301
+          AVAS_GO_IMAGE_TAG: avas_24012303
           AVAS_GO_REPOSITORY: avas-open-indexer
         run: |
           echo "COPY --from=$ECR_REGISTRY/$AVAS_GO_REPOSITORY:$AVAS_GO_IMAGE_TAG /avas-open-indexer/indexer /\$PROJECT_DIR/indexer" >> avas_Dockerfile
