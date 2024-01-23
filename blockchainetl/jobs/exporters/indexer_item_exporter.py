@@ -48,6 +48,7 @@ class IndexerItemExporter:
     )
 
     self.call_go()
+    self.close()
 
   def convert_items(self, items, table):
     columns = [column.name for column in table.columns]
@@ -58,6 +59,7 @@ class IndexerItemExporter:
   def close(self):
     for file in self.files.values():
       file.close()
+    self.files.clear()
 
   def call_go(self):
     start_time = datetime.now()
