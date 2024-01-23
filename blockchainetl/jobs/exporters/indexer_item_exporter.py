@@ -60,7 +60,8 @@ class IndexerItemExporter:
 
   def call_go(self):
     start_time = datetime.now()
-    go_program = './indexer'
+    go_program = '../open-indexer/indexer'
+    # go_program = './indexer'
 
     command = [go_program, '--transactions', self.files["transaction"].name,
                '--logs',
@@ -69,14 +70,15 @@ class IndexerItemExporter:
     try:
       result = subprocess.run(command, check=True, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
-      self.logger.info("Go program output:", result.stdout.decode())
+      self.logger.info("Go program output: %s", result.stdout.decode())
     except subprocess.CalledProcessError as e:
-      self.logger.error("Error calling Go program:",
-                        str(e) + "," + str(e.output))
+      self.logger.error("Error calling Go program: %s",
+                        str(e).decode())
       sys.exit(1)
     except Exception as e:
       self.logger.error(
-          "Error calling Go program: " + str(e) + ", " + str(e.output))
+          "Error calling Go program: %s",
+          str(e).decode() + ", " + str(e.output).decode())
       sys.exit(1)
     duration = datetime.now() - start_time
     self.logger.info(
