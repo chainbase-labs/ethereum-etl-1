@@ -1,6 +1,7 @@
 import collections
 import csv
 import logging
+import os
 import subprocess
 import sys
 from datetime import datetime
@@ -60,8 +61,7 @@ class IndexerItemExporter:
 
   def call_go(self):
     start_time = datetime.now()
-    go_program = '../open-indexer/indexer'
-    # go_program = './indexer'
+    go_program = os.environ.get('GO_PROGRAM_PATH', './indexer')
 
     command = [go_program, '--transactions', self.files["transaction"].name,
                '--logs',
