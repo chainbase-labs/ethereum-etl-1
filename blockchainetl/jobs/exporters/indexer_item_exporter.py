@@ -28,6 +28,7 @@ class IndexerItemExporter:
     start_time = datetime.now()
     items_grouped_by_type = group_by_item_type(items)
 
+    write_rows = 0
     for item_type, file_name in self.item_type_to_file_mapping.items():
       items = items_grouped_by_type.get(item_type)
       if items:
@@ -39,11 +40,12 @@ class IndexerItemExporter:
         table = self.item_type_to_table_mapping[item_type]
         csv_writer = csv.writer(self.files[item_type])
         converted_items = list(self.convert_items(items, table))
+        write_rows += len(converted_items)
         csv_writer.writerows(converted_items)
 
     duration = datetime.now() - start_time
     self.logger.info(
-        f"Finished write. Total items processed: {len(items)}. "
+        f"Finished write. Total items processed: {write_rows}. "
         f"Took {str(duration)}."
     )
 
@@ -54,6 +56,15 @@ class IndexerItemExporter:
     columns = [column.name for column in table.columns]
     for item in items:
       converted_item = self.converter.convert_item(item)
+      if converted_item.get("type") == "transaction":
+        if not (converted_item.get("input").startswith(
+            "0x646174613a2c7b") and converted_item.get("receipt_status") == 1):
+          continue  # 如果不满足条件，跳过此项
+      elif converted_item.get("type") == "log":
+        if converted_item.get("topic0") not in [
+          '0xf1d95ed4d1680e6f665104f19c296ae52c1f64cd8114e84d55dc6349dbdafea3',
+          '0xe2750d6418e3719830794d3db788aa72febcd657bcd18ed8f1facdbf61a69a9a']:
+          continue  # 如果不满足条件，跳过此项
       yield [converted_item.get(column) for column in columns]
 
   def close(self):
