@@ -77,7 +77,7 @@ class IndexerItemExporter:
 
     command = [go_program, '--transactions', self.files["transaction"].name,
                '--logs',
-               self.files["log"].name, '--rerun true']
+               self.files["log"].name]
 
     try:
       result = subprocess.run(command, check=True, stdout=subprocess.PIPE,
