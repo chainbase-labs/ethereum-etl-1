@@ -49,7 +49,9 @@ class IndexerItemExporter:
         f"Took {str(duration)}."
     )
     self.close()
-    self.call_go()
+    if write_rows > 0:
+      self.call_go()
+
     self.files.clear()
 
   def convert_items(self, items, table):
