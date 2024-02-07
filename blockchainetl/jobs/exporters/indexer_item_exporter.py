@@ -31,6 +31,7 @@ class IndexerItemExporter:
     write_rows = 0
     for item_type, file_name in self.item_type_to_file_mapping.items():
       items = items_grouped_by_type.get(item_type)
+      converted_items = []
       if items:
         if item_type not in self.files:
           table = self.item_type_to_table_mapping[item_type]
