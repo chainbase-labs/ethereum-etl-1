@@ -1,32 +1,40 @@
 import json
-import logging
-from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 
+from redis.client import Redis
 from rediscluster import RedisCluster
 from ethereumetl.enumeration.entity_type import EntityType
 
 
 class CacheService:
     chain: str = None
-    redis_client: RedisCluster = None
+    redis_client: RedisCluster | Redis = None
     cache_block_count = 250
 
     def __init__(self, chain: str, output: str):
         self.chain = chain
         connection_opt = parse_schema(output)
         print('redis options: ', connection_opt)
-        self.redis_client = RedisCluster(
-            startup_nodes=[
-                {
-                    'host': connection_opt.get('host'),
-                    'port': connection_opt.get('port')
-                }
-            ],
-            skip_full_coverage_check=True
-        )
-        print('self.redis_client', self.redis_client)
+        self.redis_client = self.create_redis_client(connection_opt)
         self.cache_block_count = int(connection_opt.get('cachedBlockCount')) if 'cachedBlockCount' in connection_opt else 250
+
+    def create_redis_client(self, connection_opt):
+        try:
+            return RedisCluster(
+                startup_nodes=[
+                    {
+                        'host': connection_opt.get('host'),
+                        'port': connection_opt.get('port')
+                    }
+                ],
+                skip_full_coverage_check=True
+            )
+        except Exception as e:
+            return Redis(
+                host=connection_opt.get('host'),
+                port=connection_opt.get('port'),
+                db=connection_opt.get('db')
+            )
 
     def write_cache(self, message_type, block_number, data):
         cache_key_prefix = f"{self.chain}_{message_type}"
@@ -55,7 +63,8 @@ class CacheService:
             except Exception as e:
                 # ignore redis key
                 pass
-        self.redis_client.delete(*delete_keys)
+        if len(delete_keys) > 0:
+            self.redis_client.delete(*delete_keys)
 
     def read_cache(self, message_type, block_number) -> list:
         def get_index(item: dict):
