@@ -35,6 +35,9 @@ class EthReceipt(object):
         self.status = None
         self.effective_gas_price = None
 
+        self.blob_gas_used = None
+        self.blob_gas_price = None
+
 class OptimismReceipt(EthReceipt):
     def __int__(self):
         super().__int__()

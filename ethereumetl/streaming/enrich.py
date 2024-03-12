@@ -60,6 +60,7 @@ def join(left, right, join_fields, left_fields, right_fields):
 
             yield result_item
 
+
 def enrich_l2_transactions(transactions, receipts):
     result = list(join(
         transactions, receipts, ('hash', 'transaction_hash'),
@@ -82,7 +83,11 @@ def enrich_l2_transactions(transactions, receipts):
             'transaction_type',
             'l1_block_number',
             'l1_times_stamp',
-            'l1_tx_origin'
+            'l1_tx_origin',
+            'max_fee_per_blob_gas',
+            'blob_versioned_hashes',
+            'access_list',
+            'y_parity'
         ],
         right_fields=[
             ('cumulative_gas_used', 'receipt_cumulative_gas_used'),
@@ -95,13 +100,16 @@ def enrich_l2_transactions(transactions, receipts):
             ('l1_gas_used', 'receipt_l1_gas_used'),
             ('l1_gas_used_paid', 'receipt_l1_gas_used_paid'),
             ('l1_gas_price', 'receipt_l1_gas_price'),
-            ('l1_fee_scalar', 'receipt_l1_fee_scalar')
+            ('l1_fee_scalar', 'receipt_l1_fee_scalar'),
+            ('blob_gas_used', 'receipt_blob_gas_used'),
+            ('blob_gas_price', 'receipt_blob_gas_price')
         ]))
 
     if len(result) != len(transactions):
         raise ValueError('The number of transactions is wrong ' + str(result))
 
     return result
+
 
 def enrich_transactions(transactions, receipts):
     result = list(join(
@@ -122,7 +130,11 @@ def enrich_transactions(transactions, receipts):
             'block_hash',
             'max_fee_per_gas',
             'max_priority_fee_per_gas',
-            'transaction_type'
+            'transaction_type',
+            'max_fee_per_blob_gas',
+            'blob_versioned_hashes',
+            'access_list',
+            'y_parity'
         ],
         right_fields=[
             ('cumulative_gas_used', 'receipt_cumulative_gas_used'),
@@ -130,7 +142,9 @@ def enrich_transactions(transactions, receipts):
             ('contract_address', 'receipt_contract_address'),
             ('root', 'receipt_root'),
             ('status', 'receipt_status'),
-            ('effective_gas_price', 'receipt_effective_gas_price')
+            ('effective_gas_price', 'receipt_effective_gas_price'),
+            ('blob_gas_used', 'receipt_blob_gas_used'),
+            ('blob_gas_price', 'receipt_blob_gas_price')
         ]))
 
     if len(result) != len(transactions):
@@ -221,6 +235,7 @@ def enrich_traces(blocks, traces):
         raise ValueError('The number of traces is wrong ' + str(result))
 
     return result
+
 
 def enrich_traces_with_blocks_transactions(blocks, traces, transactions):
     blocks_and_traces = list(join(

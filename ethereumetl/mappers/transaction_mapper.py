@@ -43,6 +43,11 @@ class EthTransactionMapper(object):
         transaction.max_fee_per_gas = hex_to_dec(json_dict.get('maxFeePerGas'))
         transaction.max_priority_fee_per_gas = hex_to_dec(json_dict.get('maxPriorityFeePerGas'))
         transaction.transaction_type = hex_to_dec(json_dict.get('type'))
+
+        transaction.max_fee_per_blob_gas = hex_to_dec(json_dict.get('maxFeePerBlobGas'))
+        transaction.blob_versioned_hashes = json_dict.get('blobVersionedHashes')
+        transaction.access_list = json_dict.get('accessList')
+        transaction.y_parity = hex_to_dec(json_dict.get('yParity'))
         return transaction
 
     def transaction_to_dict(self, transaction):
@@ -62,7 +67,12 @@ class EthTransactionMapper(object):
             'input': transaction.input,
             'max_fee_per_gas': transaction.max_fee_per_gas,
             'max_priority_fee_per_gas': transaction.max_priority_fee_per_gas,
-            'transaction_type': transaction.transaction_type
+            'transaction_type': transaction.transaction_type,
+
+            'max_fee_per_blob_gas': transaction.max_fee_per_blob_gas,
+            'blob_versioned_hashes': transaction.blob_versioned_hashes,
+            'access_list': transaction.access_list,
+            'y_parity': transaction.y_parity,
         }
 
 
@@ -87,6 +97,11 @@ class OptimismTransactionMapper(EthTransactionMapper):
         transaction.l1_times_stamp = json_dict.get('l1Timestamp')
         transaction.l1_block_number = hex_to_dec(json_dict.get('l1BlockNumber'))
         transaction.l1_tx_origin = json_dict.get('l1TxOrigin')
+
+        transaction.max_fee_per_blob_gas = hex_to_dec(json_dict.get('maxFeePerBlobGas'))
+        transaction.blob_versioned_hashes = json_dict.get('blobVersionedHashes')
+        transaction.access_list = json_dict.get('accessList')
+        transaction.y_parity = hex_to_dec(json_dict.get('yParity'))
         return transaction
 
     def transaction_to_dict(self, transaction):
@@ -109,5 +124,10 @@ class OptimismTransactionMapper(EthTransactionMapper):
             'transaction_type': transaction.transaction_type,
             'l1_block_number': transaction.l1_block_number,
             'l1_tx_origin': transaction.l1_tx_origin,
-            'l1_times_stamp': transaction.l1_times_stamp
+            'l1_times_stamp': transaction.l1_times_stamp,
+
+            'max_fee_per_blob_gas': transaction.max_fee_per_blob_gas,
+            'blob_versioned_hashes': transaction.blob_versioned_hashes,
+            'access_list': transaction.access_list,
+            'y_parity': transaction.y_parity,
         }

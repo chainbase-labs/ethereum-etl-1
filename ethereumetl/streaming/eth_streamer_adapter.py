@@ -206,6 +206,7 @@ class EthStreamerAdapter:
             transaction_hashes_iterable=(transaction["hash"] for transaction in transactions),
             batch_size=self.batch_size,
             batch_web3_provider=self.batch_web3_provider,
+            chain=self.chain,
             max_workers=self.max_workers,
             item_exporter=exporter,
             export_receipts=self._should_export(EntityType.RECEIPT),
