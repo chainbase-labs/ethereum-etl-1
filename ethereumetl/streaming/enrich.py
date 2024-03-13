@@ -309,37 +309,13 @@ def enrich_traces_with_blocks_transactions(blocks, traces, transactions):
     # calculate trace index
     for ind, trace in enumerate(trs):
         trace.trace_index = ind
-        enriched_traces.append(trace_mapper.trace_to_dict(trace))
+        trace_item = trace.__dict__
+        trace_item.update({
+            'type': 'trace'
+        })
+        enriched_traces.append(trace_item)
 
-    enriched_blocks_and_traces = list(join(
-        enriched_traces, blocks, ('block_number', 'number'),
-        [
-            'type',
-            'transaction_index',
-            'from_address',
-            'to_address',
-            'value',
-            'input',
-            'output',
-            'trace_type',
-            'call_type',
-            'reward_type',
-            'gas',
-            'gas_used',
-            'subtraces',
-            'trace_address',
-            'error',
-            'status',
-            'transaction_hash',
-            'block_number',
-            'trace_id',
-            'trace_index',
-        ],
-        [
-            ('timestamp', 'block_timestamp'),
-            ('hash', 'block_hash'),
-        ]))
-    return enriched_blocks_and_traces
+    return enriched_traces
 
 
 def enrich_contracts(blocks, contracts):
