@@ -50,6 +50,9 @@ class EthReceiptMapper(object):
 
         receipt.effective_gas_price = hex_to_dec(json_dict.get('effectiveGasPrice'))
 
+        receipt.blob_gas_used = hex_to_dec(json_dict.get('blobGasUsed'))
+        receipt.blob_gas_price = hex_to_dec(json_dict.get('blobGasPrice'))
+
         if 'logs' in json_dict:
             receipt.logs = [
                 self.receipt_log_mapper.json_dict_to_receipt_log(log) for log in json_dict['logs']
@@ -70,6 +73,8 @@ class EthReceiptMapper(object):
             'root': receipt.root,
             'status': receipt.status,
             'effective_gas_price': receipt.effective_gas_price,
+            'blob_gas_used': receipt.blob_gas_used,
+            'blob_gas_price': receipt.blob_gas_price,
         }
 
 
@@ -108,6 +113,9 @@ class OptimismReceiptMapper(EthReceiptMapper):
         receipt.l1_gas_price = hex_to_dec(json_dict.get('l1GasPrice'))
         receipt.l1_fee_scalar = hex_to_dec(json_dict.get('l1FeeScalar'))
 
+        receipt.blob_gas_used = hex_to_dec(json_dict.get('blobGasUsed'))
+        receipt.blob_gas_price = hex_to_dec(json_dict.get('blobGasPrice'))
+
         if 'logs' in json_dict:
             receipt.logs = [
                 self.receipt_log_mapper.json_dict_to_receipt_log(log) for log in json_dict['logs']
@@ -133,4 +141,6 @@ class OptimismReceiptMapper(EthReceiptMapper):
             'l1_gas_used_paid': receipt.l1_gas_used_paid,
             'l1_gas_price': receipt.l1_gas_price,
             'l1_fee_scalar': receipt.l1_fee_scalar,
+            'blob_gas_used': receipt.blob_gas_used,
+            'blob_gas_price': receipt.blob_gas_price,
         }

@@ -55,6 +55,10 @@ class EthBlockMapper(object):
         block.base_fee_per_gas = hex_to_dec(json_dict.get('baseFeePerGas'))
         block.withdrawals_root = json_dict.get('withdrawalsRoot')
 
+        block.blob_gas_used = hex_to_dec(json_dict.get('blobGasUsed'))
+        block.excess_blob_gas = hex_to_dec(json_dict.get('excessBlobGas'))
+        block.parent_beacon_block_root = json_dict.get('parentBeaconBlockRoot')
+
         if 'transactions' in json_dict:
             block.transactions = [
                 self.transaction_mapper.json_dict_to_transaction(tx, block_timestamp=block.timestamp)
@@ -104,4 +108,7 @@ class EthBlockMapper(object):
             'base_fee_per_gas': block.base_fee_per_gas,
             'withdrawals_root': block.withdrawals_root,
             'withdrawals': block.withdrawals,
+            'blob_gas_used': block.blob_gas_used,
+            'excess_blob_gas': block.excess_blob_gas,
+            'parent_beacon_block_root': block.parent_beacon_block_root,
         }

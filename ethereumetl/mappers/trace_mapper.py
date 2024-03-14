@@ -212,4 +212,7 @@ class EthTraceMapper(object):
         trace.block_number = json_dict['block_number'] if 'block_number' in json_dict else None
         trace.trace_id = json_dict['trace_id'] if 'trace_id' in json_dict else None
         trace.trace_index = json_dict['trace_index'] if 'trace_index' in json_dict else None
+        trace.call_type = json_dict['call_type'] if 'call_type' in json_dict else None
+        trace.block_timestamp = json_dict['block_timestamp'] if 'block_timestamp' in json_dict else None
+        trace.block_hash = json_dict['block_hash'] if 'block_hash' in json_dict else None
         return trace

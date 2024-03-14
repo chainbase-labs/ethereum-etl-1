@@ -46,3 +46,7 @@ class EthBlock(object):
         self.transaction_count = 0
         self.base_fee_per_gas = 0
         self.withdrawals = []
+
+        self.blob_gas_used = None
+        self.excess_blob_gas = None
+        self.parent_beacon_block_root = None
