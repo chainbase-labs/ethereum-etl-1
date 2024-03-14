@@ -128,16 +128,8 @@ class ReorgService:
             key=lambda item: item.get('number')
         )
 
-        if not self.check_block_hash(
-                last_block.get('number'),
-                last_block.get('hash')
-        ):
-            raise BatchReorgException(
-                last_block.get('number'),
-                f"Reorganization is highly occurring in the current block {last_block.get('number')} {last_block.get('hash')}"
-            )
-        self.logger.info(
-            f"Check batch that block height {last_block.get('number')} is correct")
+        self.check_block_hash(last_block.get('number'), last_block.get('hash'))
+        self.logger.info(f"Check batch that block height {last_block.get('number')} is correct")
 
         # write hash to block
         for item in sorted_block_items:
@@ -145,13 +137,18 @@ class ReorgService:
 
     def check_block_hash(self, block_number: int, target_hash: str):
         if target_hash is None:
-            return True
+            return
+
         response = self._batch_web3_provider.make_request(
             'eth_getBlockByNumber', [hex(block_number), False]
         )
         result = response.get('result')
         block_hash = result.get('hash')
-        return target_hash.lower() == block_hash.lower()
+        if target_hash.lower() != block_hash.lower():
+            raise BatchReorgException(
+                block_number,
+                f"Reorganization is highly occurring in the current block {block_number}, Target Hash: {target_hash.lower()}, Actual hash: {block_hash.lower()}"
+            )
 
     def check_prev_block(self, block: dict):
         """
