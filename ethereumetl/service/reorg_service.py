@@ -157,6 +157,9 @@ class ReorgService:
         """
 
         prev_block = block.get('number') - 1
+        if prev_block <= 0:
+            return
+
         self.init_block_hash_file(prev_block)
 
         if block.get(

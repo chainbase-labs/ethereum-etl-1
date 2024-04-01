@@ -6,7 +6,7 @@ import requests
 class MonitorService:
     blockchain: str
     endpoint: str
-    last_alert_block: int
+    last_alert_block: int = 0
 
     def __init__(self, endpoint: str, blockchain: str):
         self.endpoint = endpoint
