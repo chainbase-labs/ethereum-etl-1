@@ -109,6 +109,7 @@ from ethereumetl.thread_local_proxy import ThreadLocalProxy
     is_flag=True,
     type=bool,
 )
+@click.option("-t", "--timeout", default=60, show_default=True, type=int, help="request timeout")
 def stream(
     last_synced_block_file,
     lag,
@@ -129,6 +130,7 @@ def stream(
     pid_file=None,
     monitor_endpoint=None,
     debezium_json=False,
+    timeout=60,
 ):
     """Streams all data types to console or Google Pub/Sub."""
     configure_logging(log_file, log_name)
@@ -145,7 +147,7 @@ def stream(
     reorg_service = (
         ReorgService(
             capacity=1000,
-            batch_web3_provider=ThreadLocalProxy(lambda: get_provider_from_uri(provider_uri, batch=True)),
+            batch_web3_provider=ThreadLocalProxy(lambda: get_provider_from_uri(provider_uri, batch=True, timeout=timeout)),
             last_sync_block_hash=last_sync_block_hash,
             chain=chain,
             output=output,
@@ -156,7 +158,7 @@ def stream(
 
     monitor_service = MonitorService(endpoint=monitor_endpoint, blockchain=chain)
     streamer_adapter = EthStreamerAdapter(
-        batch_web3_provider=ThreadLocalProxy(lambda: get_provider_from_uri(provider_uri, batch=True)),
+        batch_web3_provider=ThreadLocalProxy(lambda: get_provider_from_uri(provider_uri, batch=True, timeout=timeout)),
         node_client=node_client,
         item_exporter=create_item_exporters(output, chain, debezium_json=debezium_json),
         batch_size=batch_size,
