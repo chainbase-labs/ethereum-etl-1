@@ -44,7 +44,7 @@ class ExportContractsJob(BaseJob):
         self.batch_web3_provider = batch_web3_provider
         self.contract_addresses_iterable = contract_addresses_iterable
 
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
+        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers, progress_name=self.__class__.__name__)
         self.item_exporter = item_exporter
 
         self.contract_service = EthContractService()

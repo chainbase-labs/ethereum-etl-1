@@ -46,7 +46,7 @@ class ExportGethTracesJob(BaseJob):
 
         self.batch_web3_provider = batch_web3_provider
 
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
+        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers, progress_name=self.__class__.__name__)
         self.item_exporter = item_exporter
 
         self.geth_trace_mapper = EthGethTraceMapper()

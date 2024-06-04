@@ -31,7 +31,7 @@ class ExportTokensJob(BaseJob):
     def __init__(self, web3, item_exporter, token_addresses_iterable, max_workers):
         self.item_exporter = item_exporter
         self.token_addresses_iterable = token_addresses_iterable
-        self.batch_work_executor = BatchWorkExecutor(1, max_workers)
+        self.batch_work_executor = BatchWorkExecutor(1, max_workers, progress_name=self.__class__.__name__)
 
         self.token_service = EthTokenService(web3, clean_user_provided_content)
         self.token_mapper = EthTokenMapper()
