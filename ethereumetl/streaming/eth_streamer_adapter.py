@@ -57,12 +57,23 @@ class EthStreamerAdapter:
         self.item_timestamp_calculator = EthItemTimestampCalculator()
         self.reorg_service = reorg_service
 
+    def get_client_version(self):
+        response = self.batch_web3_provider.make_request('web3_clientVersion', [])
+        return response["result"]
+
     def open(self):
+        self.client_version = self.get_client_version()
         self.item_exporter.open()
 
     def get_current_block_number(self):
         w3 = build_web3(self.batch_web3_provider)
         return int(w3.eth.getBlock("latest").number)
+
+    def verify_clients(self, *client: list[str]):
+        for item in client:
+            if self.client_version.lower().startswith(item):
+                return True
+        return False
 
     def export_all(self, start_block, end_block):
         # Export blocks and transactions
@@ -81,7 +92,7 @@ class EthStreamerAdapter:
         # Export receipts and logs
         receipts, logs = [], []
         if self._should_export(EntityType.RECEIPT) or self._should_export(EntityType.LOG):
-            if self.node_client != "erigon":
+            if not self.verify_clients("geth", "erigon"):
                 receipts, logs = self._export_receipts_and_logs(transactions)
             else:
                 receipts, logs = self._export_receipts_and_logs_by_block(blocks)
@@ -301,7 +312,6 @@ class EthStreamerAdapter:
 
     def calculate_item_info(self, items):
         for item in items:
-
             item.update(
                 {
                     "item_id": self.item_id_calculator.calculate(item),
