@@ -69,7 +69,7 @@ class EthStreamerAdapter:
         w3 = build_web3(self.batch_web3_provider)
         return int(w3.eth.getBlock("latest").number)
 
-    def verify_clients(self, *client: list[str]):
+    def verify_clients(self, *client: str):
         for item in client:
             if self.client_version.lower().startswith(item):
                 return True
