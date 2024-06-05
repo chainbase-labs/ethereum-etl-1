@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import logging
+import os
 import time
 
 from requests.exceptions import Timeout as RequestsTimeout, HTTPError, TooManyRedirects
@@ -31,12 +32,20 @@ from ethereumetl.executors.fail_safe_executor import FailSafeExecutor
 from ethereumetl.misc.retriable_value_error import RetriableValueError
 from ethereumetl.progress_logger import ProgressLogger
 from ethereumetl.utils import dynamic_batch_iterator
+from enum import Enum, auto
 
 RETRY_EXCEPTIONS = (ConnectionError, HTTPError, RequestsTimeout, TooManyRedirects, Web3Timeout, OSError,
                     RetriableValueError)
 
 BATCH_CHANGE_COOLDOWN_PERIOD_SECONDS = 2 * 60
 
+
+
+class BatchMode(Enum):
+    Concurrency = auto()
+    Batch = auto()
+
+mode = os.getenv("BATCH_MODE", "Batch")
 
 # Executes the given work in batches, reducing the batch size exponentially in case of errors.
 class BatchWorkExecutor:
@@ -55,6 +64,12 @@ class BatchWorkExecutor:
 
     def execute(self, work_iterable, work_handler, total_items=None):
         self.progress_logger.start(total_items=total_items)
+
+        if BatchMode[mode.capitalize()] == BatchMode.Concurrency:
+            for item in work_iterable:
+                self.executor.submit(self._fail_safe_execute, work_handler, [item])
+            return
+
         for batch in dynamic_batch_iterator(work_iterable, lambda: self.batch_size):
             self.executor.submit(self._fail_safe_execute, work_handler, batch)
 
