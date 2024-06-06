@@ -39,3 +39,22 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Login to ACR
+        uses: aliyun/acr-login@v1
+        with:
+          login-server: https://${{ secrets.ALI_LOGIN_SERVER }}
+          region-id: ${{ secrets.ALI_REGION_ID }}
+          access-key-id: ${{ secrets.ALI_ACCESS_KEY_ID }}
+          access-key-secret: ${{ secrets.ALI_ACCESS_KEY_SECRET }}
+          instance-id: ${{ secrets.ALI_INSTANCE_ID }}
+
+      - name: Build and push to AliCloud
+        env:
+          SOURCE_ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY: ${{ secrets.ALI_LOGIN_SERVER }}/${{ secrets.ALI_REGISTRY }}
+          ECR_REPOSITORY: ethereum-etl
+          IMAGE_TAG: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          docker tag $SOURCE_ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
