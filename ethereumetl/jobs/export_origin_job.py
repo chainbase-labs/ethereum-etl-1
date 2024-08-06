@@ -36,7 +36,7 @@ class ExportOriginJob(BaseJob):
         self.marketplace_listing_exporter = marketplace_listing_exporter
         self.shop_product_exporter = shop_product_exporter
 
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
+        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers, progress_name=self.__class__.__name__)
 
         self.event_extractor = OriginEventExtractor(ipfs_client)
 

@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import logging
+import os
 import time
 
 from requests.exceptions import Timeout as RequestsTimeout, HTTPError, TooManyRedirects
@@ -28,6 +29,7 @@ from web3._utils.threads import Timeout as Web3Timeout
 
 from ethereumetl.executors.bounded_executor import BoundedExecutor
 from ethereumetl.executors.fail_safe_executor import FailSafeExecutor
+from ethereumetl.executors.mode import BatchMode
 from ethereumetl.misc.retriable_value_error import RetriableValueError
 from ethereumetl.progress_logger import ProgressLogger
 from ethereumetl.utils import dynamic_batch_iterator
@@ -37,10 +39,11 @@ RETRY_EXCEPTIONS = (ConnectionError, HTTPError, RequestsTimeout, TooManyRedirect
 
 BATCH_CHANGE_COOLDOWN_PERIOD_SECONDS = 2 * 60
 
+mode = os.getenv("BATCH_MODE", "Batch")
 
 # Executes the given work in batches, reducing the batch size exponentially in case of errors.
 class BatchWorkExecutor:
-    def __init__(self, starting_batch_size, max_workers, retry_exceptions=RETRY_EXCEPTIONS, max_retries=5):
+    def __init__(self, starting_batch_size, max_workers, retry_exceptions=RETRY_EXCEPTIONS, max_retries=5, progress_name="work"):
         self.batch_size = starting_batch_size
         self.max_batch_size = starting_batch_size
         self.latest_batch_size_change_time = None
@@ -50,11 +53,17 @@ class BatchWorkExecutor:
         self.executor = FailSafeExecutor(BoundedExecutor(1, self.max_workers))
         self.retry_exceptions = retry_exceptions
         self.max_retries = max_retries
-        self.progress_logger = ProgressLogger()
+        self.progress_logger = ProgressLogger(progress_name)
         self.logger = logging.getLogger('BatchWorkExecutor')
 
     def execute(self, work_iterable, work_handler, total_items=None):
         self.progress_logger.start(total_items=total_items)
+
+        if BatchMode[mode.capitalize()] == BatchMode.Concurrency:
+            for item in work_iterable:
+                self.executor.submit(self._fail_safe_execute, work_handler, [item])
+            return
+
         for batch in dynamic_batch_iterator(work_iterable, lambda: self.batch_size):
             self.executor.submit(self._fail_safe_execute, work_handler, batch)
 

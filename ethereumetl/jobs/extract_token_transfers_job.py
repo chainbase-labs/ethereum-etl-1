@@ -36,7 +36,7 @@ class ExtractTokenTransfersJob(BaseJob):
             item_exporter):
         self.logs_iterable = logs_iterable
 
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
+        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers, progress_name=self.__class__.__name__)
         self.item_exporter = item_exporter
 
         self.receipt_log_mapper = EthReceiptLogMapper()
