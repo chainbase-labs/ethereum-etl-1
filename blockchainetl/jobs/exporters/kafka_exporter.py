@@ -11,6 +11,11 @@ from ethereumetl.streaming.eth_streamer_adapter import OP_STATUS
 logger = logging.getLogger(__name__)
 
 
+def delivery_report(err: Exception, msg: object) -> None:
+    if err is not None:
+        raise Exception(f"failed to deliver message: {err}")
+
+
 class KafkaItemExporter:
     debezium_json: bool = False
 
@@ -96,7 +101,8 @@ class KafkaItemExporter:
         if self.debezium_json:
             message = self._convert_to_debezium_json(message)
         message_byte = json.dumps(message).encode('utf-8')
-        self.producer.produce(topic_name, value=message_byte)
+        self.producer.produce(topic_name, value=message_byte, callback=delivery_report)
+        self.producer.poll(0)
         return len(message_byte)
 
     def fail(self, error):
