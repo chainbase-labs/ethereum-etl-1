@@ -53,3 +53,4 @@ ENV/
 /last_sync_block_hash.json
 
 .idea/*
+**/.DS_Store
