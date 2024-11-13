@@ -58,8 +58,11 @@ class EthStreamerAdapter:
         self.reorg_service = reorg_service
 
     def get_client_version(self):
-        response = self.batch_web3_provider.make_request('web3_clientVersion', [])
-        return response["result"]
+        try:
+            response = self.batch_web3_provider.make_request('web3_clientVersion', [])
+            return response["result"]
+        except Exception as e:
+            return self.node_client
 
     def open(self):
         self.client_version = self.get_client_version()
