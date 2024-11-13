@@ -6,6 +6,7 @@ from blockchainetl.jobs.exporters.in_memory_item_exporter import InMemoryItemExp
 from ethereumetl.enumeration.entity_type import EntityType
 from ethereumetl.jobs.export_block_receipts_job import ExportBlockReceiptsJob
 from ethereumetl.jobs.export_blocks_job import ExportBlocksJob
+from ethereumetl.jobs.export_bor_block_receipts_job import ExportBorBlockReceiptsJob
 from ethereumetl.jobs.export_geth_traces_job import ExportGethTracesJob
 from ethereumetl.jobs.export_receipts_job import ExportReceiptsJob
 from ethereumetl.jobs.export_traces_job import ExportTracesJob
@@ -95,7 +96,9 @@ class EthStreamerAdapter:
         # Export receipts and logs
         receipts, logs = [], []
         if self._should_export(EntityType.RECEIPT) or self._should_export(EntityType.LOG):
-            if not self.verify_clients("geth", "erigon"):
+            if self.verify_clients("bor"):
+                receipts, logs = self._export_bor_receipts_and_logs_by_block(blocks)
+            elif not self.verify_clients("geth", "erigon"):
                 receipts, logs = self._export_receipts_and_logs(transactions)
             else:
                 receipts, logs = self._export_receipts_and_logs_by_block(blocks)
@@ -201,6 +204,22 @@ class EthStreamerAdapter:
     def _export_receipts_and_logs_by_block(self, blocks):
         exporter = InMemoryItemExporter(item_types=["receipt", "log"])
         job = ExportBlockReceiptsJob(
+            blocks_iterable=(block["number"] for block in blocks),
+            batch_size=self.batch_size,
+            batch_web3_provider=self.batch_web3_provider,
+            max_workers=self.max_workers,
+            item_exporter=exporter,
+            export_receipts=self._should_export(EntityType.RECEIPT),
+            export_logs=self._should_export(EntityType.LOG),
+        )
+        job.run()
+        receipts = exporter.get_items("receipt")
+        logs = exporter.get_items("log")
+        return receipts, logs
+
+    def _export_bor_receipts_and_logs_by_block(self, blocks):
+        exporter = InMemoryItemExporter(item_types=["receipt", "log"])
+        job = ExportBorBlockReceiptsJob(
             blocks_iterable=(block["number"] for block in blocks),
             batch_size=self.batch_size,
             batch_web3_provider=self.batch_web3_provider,
