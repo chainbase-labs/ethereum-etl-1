@@ -31,15 +31,18 @@ def calculate_trace_statuses(traces):
         else:
             trace.status = 1
 
-    # group by transaction
-    grouped_transaction_traces = defaultdict(list)
-    for trace in traces:
-        if trace.transaction_hash is not None and len(trace.transaction_hash) > 0:
-            grouped_transaction_traces[trace.transaction_hash].append(trace)
+    # The parent trace status may fail while the child trace status may succeed,
+    # so the trace status only determines whether it contains an error.
 
-    # calculate statuses for each transaction
-    for transaction_traces in grouped_transaction_traces.values():
-        calculate_trace_statuses_for_single_transaction(transaction_traces)
+    # # group by transaction
+    # grouped_transaction_traces = defaultdict(list)
+    # for trace in traces:
+    #     if trace.transaction_hash is not None and len(trace.transaction_hash) > 0:
+    #         grouped_transaction_traces[trace.transaction_hash].append(trace)
+    #
+    # # calculate statuses for each transaction
+    # for transaction_traces in grouped_transaction_traces.values():
+    #     calculate_trace_statuses_for_single_transaction(transaction_traces)
 
     return traces
 

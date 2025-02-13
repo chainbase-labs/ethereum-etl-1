@@ -43,9 +43,16 @@ class EthTransaction(object):
         self.access_list = []
         self.y_parity = None
 
-class OptimismTransaction(EthTransaction):
-    def __int__(self):
-        super().__int__()
-        self.l1_block_number = None
-        self.l1_tx_origin = None
-        self.l1_times_stamp = None
+        self.r = None
+        self.s = None
+        self.v = None
+        self.chain_id = None
+
+        self.block_timestamp = None
+        self.base_fee_per_gas = None
+        self.log_count = None
+        self.method_id = None
+
+        # OP Stack
+        self.source_hash = None
+        self.mint = None

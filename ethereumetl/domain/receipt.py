@@ -38,11 +38,22 @@ class EthReceipt(object):
         self.blob_gas_used = None
         self.blob_gas_price = None
 
-class OptimismReceipt(EthReceipt):
-    def __int__(self):
-        super().__int__()
-        self.l1_fee = None
+        self.transaction_type = None
+        self.bloom = None
+        self.block_timestamp = None
+        self.from_address = None
+        self.to_address = None
+        self.log_count = None
+
+        # OP Stack
+        # l1_block_number -> input[57:72]
+        # l1_timestamp -> input[41:56]
+        self.deposit_nonce = None
+        self.deposit_receipt_version = None
         self.l1_gas_used = None
-        self.l1_gas_used_paid = None
         self.l1_gas_price = None
-        self.l1_fee_scalar = None
+        self.l1_fee = None
+        self.fee_scalar = None
+        self.l1_blob_base_fee = None
+        self.l1_base_fee_scalar = None
+        self.l1_blob_base_fee_scalar = None

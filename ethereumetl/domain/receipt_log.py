@@ -31,3 +31,8 @@ class EthReceiptLog(object):
         self.address = None
         self.data = None
         self.topics = []
+
+        self.transaction_type = None
+        self.block_timestamp = None
+        self.from_address = None
+        self.to_address = None

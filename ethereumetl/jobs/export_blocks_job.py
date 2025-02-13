@@ -27,23 +27,23 @@ from ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from blockchainetl.jobs.base_job import BaseJob
 from ethereumetl.json_rpc_requests import generate_get_block_by_number_json_rpc
 from ethereumetl.mappers.block_mapper import EthBlockMapper
-from ethereumetl.mappers.transaction_mapper import EthTransactionMapper, OptimismTransactionMapper
+from ethereumetl.mappers.transaction_mapper import EthTransactionMapper
 from ethereumetl.utils import rpc_response_batch_to_results, validate_range
 
 
 # Exports blocks and transactions
 class ExportBlocksJob(BaseJob):
     def __init__(
-            self,
-            start_block,
-            end_block,
-            batch_size,
-            batch_web3_provider,
-            max_workers,
-            item_exporter,
-            chain="ethereum",
-            export_blocks=True,
-            export_transactions=True):
+        self,
+        start_block,
+        end_block,
+        batch_size,
+        batch_web3_provider,
+        max_workers,
+        item_exporter,
+        chain="ethereum",
+        export_blocks=True,
+        export_transactions=True):
         validate_range(start_block, end_block)
         self.start_block = start_block
         self.end_block = end_block
@@ -58,13 +58,9 @@ class ExportBlocksJob(BaseJob):
         self.export_transactions = export_transactions
         if not self.export_blocks and not self.export_transactions:
             raise ValueError('At least one of export_blocks or export_transactions must be True')
-        if self.chain[0] == 'optimism':
-            l2_transfer_mapper = OptimismTransactionMapper()
-            self.block_mapper = EthBlockMapper(l2_transfer_mapper)
-            self.transaction_mapper = l2_transfer_mapper
-        else:
-            self.block_mapper = EthBlockMapper()
-            self.transaction_mapper = EthTransactionMapper()           
+
+        self.block_mapper = EthBlockMapper()
+        self.transaction_mapper = EthTransactionMapper()
 
     def _start(self):
         self.item_exporter.open()

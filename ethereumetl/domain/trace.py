@@ -42,3 +42,9 @@ class EthTrace(object):
         self.status = None
         self.trace_id = None
         self.trace_index = None
+
+        self.block_hash = None
+        self.block_timestamp = None
+        self.raw_type = None  # geth, call type
+        self.transaction_status = None
+        self.method_id = None

@@ -61,7 +61,19 @@ def join(left, right, join_fields, left_fields, right_fields):
             yield result_item
 
 
-def enrich_l2_transactions(transactions, receipts):
+def enrich_blocks_finally(blocks, enriched_txs, enriched_traces):
+    # TODO, calculator_traces_root
+    log_count = defaultdict(int)
+    for tx in enriched_txs:
+        log_count[tx['block_number']] += tx['log_count']
+
+    for block in blocks:
+        block['log_count'] = log_count[block['number']]
+
+    return blocks
+
+
+def enrich_transactions(blocks, transactions, receipts):
     result = list(join(
         transactions, receipts, ('hash', 'transaction_hash'),
         left_fields=[
@@ -81,13 +93,18 @@ def enrich_l2_transactions(transactions, receipts):
             'max_fee_per_gas',
             'max_priority_fee_per_gas',
             'transaction_type',
-            'l1_block_number',
-            'l1_times_stamp',
-            'l1_tx_origin',
             'max_fee_per_blob_gas',
             'blob_versioned_hashes',
             'access_list',
-            'y_parity'
+            'y_parity',
+            'r',
+            's',
+            'v',
+            'chain_id',
+            'base_fee_per_gas',
+            'method_id',
+            'source_hash',
+            'mint'
         ],
         right_fields=[
             ('cumulative_gas_used', 'receipt_cumulative_gas_used'),
@@ -96,55 +113,27 @@ def enrich_l2_transactions(transactions, receipts):
             ('root', 'receipt_root'),
             ('status', 'receipt_status'),
             ('effective_gas_price', 'receipt_effective_gas_price'),
-            ('l1_fee', 'receipt_l1_fee'),
+            ('blob_gas_used', 'receipt_blob_gas_used'),
+            ('blob_gas_price', 'receipt_blob_gas_price'),
+            ('bloom', 'receipt_bloom'),
+            ('deposit_nonce', 'receipt_deposit_nonce'),
+            ('deposit_receipt_version', 'receipt_deposit_receipt_version'),
             ('l1_gas_used', 'receipt_l1_gas_used'),
-            ('l1_gas_used_paid', 'receipt_l1_gas_used_paid'),
             ('l1_gas_price', 'receipt_l1_gas_price'),
-            ('l1_fee_scalar', 'receipt_l1_fee_scalar'),
-            ('blob_gas_used', 'receipt_blob_gas_used'),
-            ('blob_gas_price', 'receipt_blob_gas_price')
+            ('l1_fee', 'receipt_l1_fee'),
+            ('fee_scalar', 'receipt_fee_scalar'),
+            ('l1_blob_base_fee', 'receipt_l1_blob_base_fee'),
+            ('l1_base_fee_scalar', 'receipt_l1_base_fee_scalar'),
+            ('l1_blob_base_fee_scalar', 'receipt_l1_blob_base_fee_scalar'),
+
+            ('log_count', 'log_count'),
         ]))
 
-    if len(result) != len(transactions):
-        raise ValueError('The number of transactions is wrong ' + str(result))
-
-    return result
-
-
-def enrich_transactions(transactions, receipts):
     result = list(join(
-        transactions, receipts, ('hash', 'transaction_hash'),
-        left_fields=[
-            'type',
-            'hash',
-            'nonce',
-            'transaction_index',
-            'from_address',
-            'to_address',
-            'value',
-            'gas',
-            'gas_price',
-            'input',
-            'block_timestamp',
-            'block_number',
-            'block_hash',
-            'max_fee_per_gas',
-            'max_priority_fee_per_gas',
-            'transaction_type',
-            'max_fee_per_blob_gas',
-            'blob_versioned_hashes',
-            'access_list',
-            'y_parity'
-        ],
+        result, blocks, ('block_number', 'number'),
+        left_fields=result[0].keys(),
         right_fields=[
-            ('cumulative_gas_used', 'receipt_cumulative_gas_used'),
-            ('gas_used', 'receipt_gas_used'),
-            ('contract_address', 'receipt_contract_address'),
-            ('root', 'receipt_root'),
-            ('status', 'receipt_status'),
-            ('effective_gas_price', 'receipt_effective_gas_price'),
-            ('blob_gas_used', 'receipt_blob_gas_used'),
-            ('blob_gas_price', 'receipt_blob_gas_price')
+            ('base_fee_per_gas', 'base_fee_per_gas'),
         ]))
 
     if len(result) != len(transactions):
@@ -153,7 +142,7 @@ def enrich_transactions(transactions, receipts):
     return result
 
 
-def enrich_logs(blocks, logs):
+def enrich_logs(blocks, logs, receipts):
     result = list(join(
         logs, blocks, ('block_number', 'number'),
         [
@@ -169,6 +158,26 @@ def enrich_logs(blocks, logs):
         [
             ('timestamp', 'block_timestamp'),
             ('hash', 'block_hash'),
+        ]))
+
+    result = list(join(
+        result, receipts, ('transaction_hash', 'transaction_hash'),
+        [
+            'type',
+            'log_index',
+            'transaction_hash',
+            'transaction_index',
+            'address',
+            'data',
+            'topics',
+            'block_number',
+            'block_timestamp',
+            'block_hash'
+        ],
+        [
+            ('from_address', 'from_address'),
+            ('to_address', 'to_address'),
+            ('transaction_type', 'transaction_type'),
         ]))
 
     if len(result) != len(logs):
@@ -259,7 +268,10 @@ def enrich_traces_with_blocks_transactions(blocks, traces, transactions):
             'status',
             'transaction_hash',
             'block_number',
-            'trace_id'
+            'trace_id',
+            'trace_index',
+            'raw_type',
+            'method_id',
         ],
         [
             ('timestamp', 'block_timestamp'),
@@ -273,30 +285,12 @@ def enrich_traces_with_blocks_transactions(blocks, traces, transactions):
 
     result = list(join(
         blocks_and_traces, transactions, ('block_number_transaction_index', 'block_number_transaction_index'),
-        [
-            'type',
-            'transaction_index',
-            'from_address',
-            'to_address',
-            'value',
-            'input',
-            'output',
-            'trace_type',
-            'call_type',
-            'reward_type',
-            'gas',
-            'gas_used',
-            'subtraces',
-            'trace_address',
-            'error',
-            'status',
-            'block_number',
-            'trace_id'
-        ],
+        blocks_and_traces[0].keys(),
         [
             ('block_timestamp', 'block_timestamp'),
             ('block_hash', 'block_hash'),
-            ('hash', 'transaction_hash')
+            ('hash', 'transaction_hash'),
+            ('receipt_status', 'transaction_status'),
         ]))
 
     if len(result) != len(traces):
@@ -306,9 +300,19 @@ def enrich_traces_with_blocks_transactions(blocks, traces, transactions):
     calculate_trace_statuses(trs)
     calculate_trace_ids(trs)
     enriched_traces = []
+
     # calculate trace index
-    for ind, trace in enumerate(trs):
-        trace.trace_index = ind
+    # reset trace_index when transaction changes
+    trace_index = 0
+    transaction_index = None
+    for trace in trs:
+        if trace.transaction_index != transaction_index:
+            trace_index = 0
+            transaction_index = trace.transaction_index
+
+        trace.trace_index = trace_index
+        trace_index += 1
+
         trace_item = trace.__dict__
         trace_item.update({
             'type': 'trace'
