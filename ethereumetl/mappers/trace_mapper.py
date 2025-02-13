@@ -152,6 +152,9 @@ class EthTraceMapper(object):
             trace.call_type = trace.trace_type
             trace.trace_type = 'call'
 
+        trace.raw_type = tx_trace.get('type').lower()
+        trace.method_id = tx_trace.get("input")[0:10]
+
         result = [trace]
 
         calls = tx_trace.get('calls', [])
@@ -191,6 +194,9 @@ class EthTraceMapper(object):
             'status': trace.status,
             'trace_id': trace.trace_id,
             'trace_index': trace.trace_index,
+            'raw_type': trace.raw_type,
+            'method_id': trace.method_id,
+            'transaction_status': trace.transaction_status,
         }
 
     def dict_to_trace(self, json_dict):
@@ -215,4 +221,7 @@ class EthTraceMapper(object):
         trace.call_type = json_dict['call_type'] if 'call_type' in json_dict else None
         trace.block_timestamp = json_dict['block_timestamp'] if 'block_timestamp' in json_dict else None
         trace.block_hash = json_dict['block_hash'] if 'block_hash' in json_dict else None
+        trace.raw_type = json_dict['raw_type'] if 'raw_type' in json_dict else None
+        trace.method_id = json_dict['method_id'] if 'method_id' in json_dict else None
+        trace.transaction_status = json_dict['transaction_status'] if 'transaction_status' in json_dict else None
         return trace

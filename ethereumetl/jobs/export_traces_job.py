@@ -34,15 +34,15 @@ from ethereumetl.utils import validate_range
 
 class ExportTracesJob(BaseJob):
     def __init__(
-            self,
-            start_block,
-            end_block,
-            batch_size,
-            web3,
-            item_exporter,
-            max_workers,
-            include_genesis_traces=False,
-            include_daofork_traces=False):
+        self,
+        start_block,
+        end_block,
+        batch_size,
+        web3,
+        item_exporter,
+        max_workers,
+        include_genesis_traces=False,
+        include_daofork_traces=False):
         validate_range(start_block, end_block)
         self.start_block = start_block
         self.end_block = end_block
@@ -109,5 +109,13 @@ class ExportTracesJob(BaseJob):
 
 def calculate_trace_indexes(traces):
     # Only works if traces were originally ordered correctly which is the case for Parity traces
-    for ind, trace in enumerate(traces):
-        trace.trace_index = ind
+    # for ind, trace in enumerate(traces):
+    #     trace.trace_index = ind
+    trace_index = 0
+    transaction_index = None
+    for trace in traces:
+        if trace.transaction_index != transaction_index:
+            transaction_index = trace.transaction_index
+            trace_index = 0
+        trace.trace_index = trace_index
+        trace_index += 1

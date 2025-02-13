@@ -59,6 +59,9 @@ class EthBlockMapper(object):
         block.excess_blob_gas = hex_to_dec(json_dict.get('excessBlobGas'))
         block.parent_beacon_block_root = json_dict.get('parentBeaconBlockRoot')
 
+        block.mix_hash = json_dict.get('mixHash')
+        block.uncles = json_dict.get('uncles')
+
         if 'transactions' in json_dict:
             block.transactions = [
                 self.transaction_mapper.json_dict_to_transaction(tx, block_timestamp=block.timestamp)
@@ -111,4 +114,8 @@ class EthBlockMapper(object):
             'blob_gas_used': block.blob_gas_used,
             'excess_blob_gas': block.excess_blob_gas,
             'parent_beacon_block_root': block.parent_beacon_block_root,
+            'mix_hash': block.mix_hash,
+            'uncles': block.uncles,
+            'log_count': block.log_count,
+            'traces_root': block.traces_root,
         }

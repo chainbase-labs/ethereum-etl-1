@@ -21,7 +21,7 @@ from ethereumetl.streaming.enrich import (
     enrich_contracts,
     enrich_tokens,
     enrich_traces_with_blocks_transactions,
-    enrich_l2_transactions,
+    enrich_blocks_finally,
 )
 from ethereumetl.streaming.eth_item_id_calculator import EthItemIdCalculator
 from ethereumetl.streaming.eth_item_timestamp_calculator import EthItemTimestampCalculator
@@ -122,25 +122,27 @@ class EthStreamerAdapter:
         if self._should_export(EntityType.TOKEN):
             tokens = self._extract_tokens(contracts)
 
-        enriched_blocks = blocks if EntityType.BLOCK in self.entity_types else []
         enriched_transactions = (
-            enrich_l2_transactions(transactions, receipts)
-            if EntityType.TRANSACTION in self.entity_types and self.chain[0] == "optimism"
-            else enrich_transactions(transactions, receipts)
-            if EntityType.TRANSACTION in self.entity_types
-            else []
+            enrich_transactions(blocks, transactions, receipts) if EntityType.TRANSACTION in self.entity_types else []
         )
-        enriched_logs = enrich_logs(blocks, logs) if EntityType.LOG in self.entity_types else []
+        enriched_logs = enrich_logs(blocks, logs, receipts) if EntityType.LOG in self.entity_types else []
         enriched_token_transfers = (
             enrich_token_transfers(blocks, token_transfers) if EntityType.TOKEN_TRANSFER in self.entity_types else []
         )
         enriched_traces = (
-            enrich_traces_with_blocks_transactions(blocks, traces, transactions)
+            enrich_traces_with_blocks_transactions(blocks, traces, enriched_transactions)
             if EntityType.TRACE in self.entity_types and self.node_client == "geth"
             else enrich_traces(blocks, traces)
             if EntityType.TRACE in self.entity_types
             else []
         )
+
+        enriched_blocks = enrich_blocks_finally(
+            blocks,
+            enriched_transactions,
+            enriched_traces,
+        ) if EntityType.BLOCK in self.entity_types else []
+
         # geth 直接拿到的trace 没有txs hash,status等信息，contract表的计算依赖status,因此需要在trace enrich之后，在计算一次
         if self.node_client == "geth" and self._should_export(EntityType.CONTRACT):
             contracts = self._export_contracts(enriched_traces)
@@ -291,7 +293,8 @@ class EthStreamerAdapter:
             return True
 
         if entity_type == EntityType.TRANSACTION:
-            return EntityType.TRANSACTION in self.entity_types or self._should_export(EntityType.LOG) or self._should_export(EntityType.TRACE) or self._should_export(EntityType.CONTRACT)
+            return EntityType.TRANSACTION in self.entity_types or self._should_export(
+                EntityType.LOG) or self._should_export(EntityType.TRACE) or self._should_export(EntityType.CONTRACT)
 
         if entity_type == EntityType.RECEIPT:
             return EntityType.TRANSACTION in self.entity_types or self._should_export(EntityType.TOKEN_TRANSFER)

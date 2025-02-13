@@ -55,7 +55,7 @@ setup(
             'libcst==0.3.21',
             # Later versions break the build in Travis CI for Python 3.7.2
             'grpcio==1.46.3',
-            'redis-py-cluster==2.1.3'
+            'redis-py-cluster==2.1.3',
         ],
         'streaming-kinesis': [
             'boto3==1.24.11',

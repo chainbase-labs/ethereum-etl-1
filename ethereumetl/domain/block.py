@@ -50,3 +50,8 @@ class EthBlock(object):
         self.blob_gas_used = None
         self.excess_blob_gas = None
         self.parent_beacon_block_root = None
+
+        self.mix_hash = None
+        self.uncles = None
+        self.log_count = None
+        self.traces_root = None
